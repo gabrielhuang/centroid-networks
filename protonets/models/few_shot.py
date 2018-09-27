@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 from protonets.models import register_model
+from . import wasserstein
 
 from .utils import euclidean_dist
 
@@ -84,11 +85,9 @@ def load_protonet_conv(**kwargs):
     return Protonet(encoder)
 
 
-class ClusteringNet(Protonet):
+class ClusterNet(Protonet):
     def __init__(self, encoder):
-        super(ClusteringNet, self).__init__()
-
-        self.encoder = encoder
+        super(ClusterNet, self).__init__(encoder)
 
     def loss(self, sample):
         xs = Variable(sample['xs'])  # support
@@ -111,19 +110,74 @@ class ClusteringNet(Protonet):
         z = self.encoder.forward(x)
         z_dim = z.size(-1)
 
-        z_proto = z[:n_class * n_support].view(n_class, n_support, z_dim).mean(1)
+        #z_proto = z[:n_class * n_support].view(n_class, n_support, z_dim).mean(1)
+
+        zs = z[:n_class * n_support]
         zq = z[n_class * n_support:]
 
+        # Cluster support set into clusters
+        z_proto, data_centroid_assignment = wasserstein.cluster_wasserstein(zs, n_class)
+
+        # Pairwise distance from query set to centroids
         dists = euclidean_dist(zq, z_proto)
 
+        # Unpermuted Log Probabilities
         log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1)
 
-        loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
+        target_inds_dummy = torch.zeros((n_class*n_query, n_class))
+        target_inds_dummy[range(n_class*n_query), target_inds.view(-1)] = 1. # transform targets to one-hot
 
-        _, y_hat = log_p_y.max(2)
+        # Build permutation cost matrix
+        permutation_cost = -log_p_y.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
+        permutation_cost = permutation_cost.sum(1).sum(0)
+
+        # Compute best label assignment and corresponding loss
+        # assignment[a,b] = 1_{a=\sigma(b)}
+        # min_{\gamma} \sum_{a,b} permutation_cost[a,b] * assignment[a,b]
+        # might not backprop through the graph though ...
+        # it might or might not be equivalent due to the contraints (is it a critical point?)
+
+        #loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
+
+        #log_p_y_permuted[n, k, a] = n_class * \sum_b log_p_y[n, k, b] * assignment[a,b]
+
+        # Permuted log probabilities
+        loss_val, assignment, __, __ = wasserstein.compute_sinkhorn_stable(
+            permutation_cost, regularization=100., iterations=10)
+
+        log_p_y_permuted = n_class * torch.matmul(log_p_y, assignment.t())
+
+        #_, y_hat = log_p_y.max(2)
+        __, y_hat = log_p_y_permuted.max(2)
+
         acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
 
         return loss_val, {
             'loss': loss_val.item(),
             'acc': acc_val.item()
         }
+
+
+@register_model('clusternet_conv')
+def load_clusternet_conv(**kwargs):
+    x_dim = kwargs['x_dim']
+    hid_dim = kwargs['hid_dim']
+    z_dim = kwargs['z_dim']
+
+    def conv_block(in_channels, out_channels):
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+    encoder = nn.Sequential(
+        conv_block(x_dim[0], hid_dim),
+        conv_block(hid_dim, hid_dim),
+        conv_block(hid_dim, hid_dim),
+        conv_block(hid_dim, z_dim),
+        Flatten()
+    )
+
+    return ClusterNet(encoder)
