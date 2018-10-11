@@ -60,6 +60,10 @@ class Protonet(nn.Module):
             'acc': acc_val.item()
         }
 
+    def eval_loss(self, sample):
+        return self.loss(sample)
+
+
 @register_model('protonet_conv')
 def load_protonet_conv(**kwargs):
     x_dim = kwargs['x_dim']
@@ -89,7 +93,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def loss(self, sample):
+    def eval_loss(self, sample):
         xs = Variable(sample['xs'])  # support
         xq = Variable(sample['xq'])  # query
 
@@ -156,6 +160,7 @@ class ClusterNet(Protonet):
             'loss': loss_val.item(),
             'acc': acc_val.item()
         }
+
 
 
 @register_model('clusternet_conv')

@@ -49,6 +49,9 @@ class Engine(object):
                 state['batch'] += 1
                 self.hooks['on_update'](state)
 
+                #print 'DEBUG'
+                #break
+
             state['epoch'] += 1
             state['batch'] = 0
             self.hooks['on_end_epoch'](state)

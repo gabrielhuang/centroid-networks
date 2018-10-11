@@ -56,7 +56,7 @@ def naive_log_sum_exp(u, dim):
     return torch.log(torch.sum(torch.exp(u), dim))
 
 
-def compute_sinkhorn_stable(m, r=None, c=None, regularization=100., iterations=40):
+def compute_sinkhorn_stable(m, r=None, c=None, log_v=None, regularization=100., iterations=40):
     # If no distributions are given, consider two uniform histograms
     if r is None:
         r = torch.ones(m.size()[0]) / m.size()[0]
@@ -66,7 +66,8 @@ def compute_sinkhorn_stable(m, r=None, c=None, regularization=100., iterations=4
     log_c = torch.log(c)
 
     # Initialize dual variable v (u is implicitly defined in the loop)
-    log_v = torch.zeros(m.size()[1])  # ==torch.log(torch.ones(m.size()[1]))
+    if log_v is None:
+        log_v = torch.zeros(m.size()[1])  # ==torch.log(torch.ones(m.size()[1]))
 
     # Exponentiate the pairwise distance matrix
     log_K = -regularization * m
@@ -109,11 +110,16 @@ def cluster_wasserstein_flat(X, n_components, regularization=100., iterations=20
 
     assert len(X.size()) == 2, 'Please flatten input to cluster_wasserstein'
     centroids = 0.01 * torch.randn((n_components, X.size()[1]))  # should be fine in most cases
+    log_v = None
     for iteration in xrange(iterations):
 
         distances = get_pairwise_distances(X, centroids)
         # Expectation - Compute Sinkhorn distance
-        dst, P, u, v = compute_sinkhorn_stable(distances, regularization=regularization)
+        sinkhorn_iterations = 20 if iteration == 0 else 2
+        dst, P, log_u, log_v = compute_sinkhorn_stable(distances,
+                                                       regularization=regularization,
+                                                       log_v=log_v,
+                                                       iterations=sinkhorn_iterations)
         soft_assignments = P / P.sum(0, keepdim=True)  # P_ij / sum_i P_ij is soft-assignment of cluster j
 
         if stop_gradient:
