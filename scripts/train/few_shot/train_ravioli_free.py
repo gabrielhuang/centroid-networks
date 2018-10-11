@@ -100,6 +100,7 @@ def main(opt):
 
         # Prepare datasets
         train_iter = make_infinite(train_loader)
+        other_train_iter = make_infinite(train_loader)  # for evaluating other losses
         val_iter = make_infinite(val_loader)
 
     ###########################################
@@ -155,8 +156,13 @@ def main(opt):
 
                 _, val_info = model.eval_loss(sample)
 
+            other_sample, __ = other_train_iter.next()
+            _, val_train_info = model.eval_loss(other_sample)
+
             summary.log(iteration, 'val/acc', val_info['acc'])
             summary.log(iteration, 'val/loss', val_info['loss'])
+            summary.log(iteration, 'val/train_acc', val_train_info['acc'])
+            summary.log(iteration, 'val/train_loss', val_train_info['loss'])
             summary.log(iteration, 'val/load_time', val_load_timer.interval)
             summary.log(iteration, 'val/eval_time', val_eval_timer.interval)
 
