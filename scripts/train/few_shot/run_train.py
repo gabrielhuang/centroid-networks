@@ -1,6 +1,7 @@
 import argparse
 
-from train import main
+import train
+import train_ravioli_free
 
 parser = argparse.ArgumentParser(description='Train prototypical networks')
 
@@ -65,6 +66,12 @@ default_exp_dir = 'results'
 parser.add_argument('--log.exp_dir', type=str, default=default_exp_dir, metavar='EXP_DIR',
                     help="directory where experiments should be saved (default: {:s})".format(default_exp_dir))
 
+# which version to use
+parser.add_argument('--ravioli', type=int, default=0, help='1: use original code; 0: big fat script')
+
 args = vars(parser.parse_args())
 
-main(args)
+if args['ravioli']:
+    train.main(args)
+else:
+    train_ravioli_free.main(args)
