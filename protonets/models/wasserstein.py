@@ -9,12 +9,12 @@ def compute_sinkhorn(m, r=None, c=None, regularization=100., iterations=40):
     '''
     # If no distributions are given, consider two uniform histograms
     if r is None:
-        r = torch.ones(m.size()[0]) / m.size()[0]
+        r = torch.ones(m.size()[0]).to(m.device) / m.size()[0]
     if c is None:
-        c = torch.ones(m.size()[1]) / m.size()[1]
+        c = torch.ones(m.size()[1]).to(m.device) / m.size()[1]
 
     # Initialize dual variable v (u is implicitly defined in the loop)
-    v = torch.ones(m.size()[1])
+    v = torch.ones(m.size()[1]).to(m.device)
 
     # Exponentiate the pairwise distance matrix
     K = torch.exp(-regularization * m)
@@ -59,15 +59,15 @@ def naive_log_sum_exp(u, dim):
 def compute_sinkhorn_stable(m, r=None, c=None, log_v=None, regularization=100., iterations=40):
     # If no distributions are given, consider two uniform histograms
     if r is None:
-        r = torch.ones(m.size()[0]) / m.size()[0]
+        r = torch.ones(m.size()[0]).to(m.device) / m.size()[0]
     if c is None:
-        c = torch.ones(m.size()[1]) / m.size()[1]
+        c = torch.ones(m.size()[1]).to(m.device) / m.size()[1]
     log_r = torch.log(r)
     log_c = torch.log(c)
 
     # Initialize dual variable v (u is implicitly defined in the loop)
     if log_v is None:
-        log_v = torch.zeros(m.size()[1])  # ==torch.log(torch.ones(m.size()[1]))
+        log_v = torch.zeros(m.size()[1]).to(m.device)  # ==torch.log(torch.ones(m.size()[1]))
 
     # Exponentiate the pairwise distance matrix
     log_K = -regularization * m
@@ -129,7 +129,7 @@ def cluster_wasserstein_flat(X, n_components, regularization=100., iterations=20
         centroids = torch.matmul(soft_assignments.t(), X)
 
         if add_noise > 0:
-            centroids.add_(add_noise * torch.randn(centroids.size()))
+            centroids.add_(add_noise * torch.randn(centroids.size()).to(X.device))
 
     return centroids, P
 

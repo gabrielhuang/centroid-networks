@@ -19,7 +19,7 @@ class Flatten(nn.Module):
 class Protonet(nn.Module):
     def __init__(self, encoder):
         super(Protonet, self).__init__()
-        
+
         self.encoder = encoder
 
     def loss(self, sample):
@@ -128,7 +128,7 @@ class ClusterNet(Protonet):
         # Unpermuted Log Probabilities
         log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1)
 
-        target_inds_dummy = torch.zeros((n_class*n_query, n_class))
+        target_inds_dummy = torch.zeros((n_class*n_query, n_class)).to(xs.device)
         target_inds_dummy[range(n_class*n_query), target_inds.view(-1)] = 1. # transform targets to one-hot
 
         # Build permutation cost matrix
