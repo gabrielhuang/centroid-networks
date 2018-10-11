@@ -1,7 +1,6 @@
 import os
 import json
-from functools import partial
-from tqdm import tqdm
+import time
 
 import numpy as np
 
@@ -16,6 +15,41 @@ from protonets.engine import Engine
 import protonets.utils.data as data_utils
 import protonets.utils.model as model_utils
 import protonets.utils.log as log_utils
+
+
+###########################################
+# Utils
+###########################################
+class Summary(object):
+    def __init__(self):
+        self.logs = {}
+
+    def log(self, epoch, name, value):
+        self.logs.setdefault(name, {})
+        self.logs[name][epoch] = value
+
+    def sorted(self):
+        sorted_logs = {}
+        for log in self.logs:
+            sorted_logs[log] = self.logs[log].items()
+        return sorted_logs
+
+    def print_summary(self, n_avg=50):
+        sorted_logs = self.sorted()
+        print 'Summary'
+        for log in sorted_logs:
+            tail = sorted_logs[log]
+            tail = tail[-min(len(tail), n_avg):]
+            val = dict(tail).values()
+            print '\t{}: {:.4f} +/- {:.4f}'.format(log, np.mean(val), np.std(val))
+
+def make_infinite(iterator):
+    while True:
+        new_epoch = True
+        for x in iterator:
+            yield x, new_epoch
+            new_epoch = False
+
 
 def main(opt):
     ###########################################
@@ -39,146 +73,97 @@ def main(opt):
     if opt['data.cuda']:
         torch.cuda.manual_seed(1234)
 
+    ###########################################
+    # Data
+    ###########################################
     if opt['data.trainval']:
         data = data_utils.load(opt, ['trainval'])
         train_loader = data['trainval']
         val_loader = None
+
+        # Prepare datasets
+        train_iter = make_infinite(train_loader)
+        val_iter = None
     else:
         data = data_utils.load(opt, ['train', 'val'])
         train_loader = data['train']
         val_loader = data['val']
 
+        # Prepare datasets
+        train_iter = make_infinite(train_loader)
+        val_iter = make_infinite(val_loader)
+
     ###########################################
-    # Create model
+    # Create model and optimizer
     ###########################################
     model = model_utils.load(opt)
 
     if opt['data.cuda']:
         model.cuda()
 
+    Optimizer = getattr(optim, opt['train.optim_method'])
+    optimizer = Optimizer(model.parameters(), lr=opt['train.learning_rate'], weight_decay=opt['train.weight_decay'])
 
-    meters = { 'train': { field: tnt.meter.AverageValueMeter() for field in opt['log.fields'] } }
-
-    if val_loader is not None:
-        meters['val'] = { field: tnt.meter.AverageValueMeter() for field in opt['log.fields'] }
-
+    scheduler = lr_scheduler.StepLR(optimizer, opt['train.decay_every'], gamma=0.5)
 
     ###########################################
     # Training loop
     ###########################################
 
+    summary = Summary()
+
     #### Start of training loop
-    state = {
-        'model': model,
-        'loader': train_loader,
-        'optim_method': getattr(optim, opt['train.optim_method']),
-        'optim_config': { 'lr': opt['train.learning_rate'],
-                         'weight_decay': opt['train.weight_decay'] },
-        'max_epoch': opt['train.epochs'],
-        'epoch': 0,  # epochs done so far
-        't': 0,  # samples seen so far
-        'batch': 0,  # samples seen in current epoch
-        'stop': False
-    }
-
-    state['optimizer'] = state['optim_method'](state['model'].parameters(), **state['optim_config'])
-
-    hook_state = {}  # this was passed as { } when registering hook
+    iterations = 1000000
+    for iteration in xrange(iterations):
 
 
-    ###### Start hook
-    if os.path.isfile(trace_file):
-        os.remove(trace_file)
-    state['scheduler'] = lr_scheduler.StepLR(state['optimizer'], opt['train.decay_every'], gamma=0.5)
-    ######
+        # Sample from training
+        sample, new_epoch = train_iter.next()
 
-    while state['epoch'] < state['max_epoch'] and not state['stop']:
-        state['model'].train()
+        # Compute loss; backprop
+        optimizer.zero_grad()
 
-        ###### Start Epoch hook
-        for split, split_meters in meters.items():
-            for field, meter in split_meters.items():
-                meter.reset()
-        state['scheduler'].step()
-        ######
+        before = time.time()
+        loss, train_info = model.eval_loss(sample)
 
-        state['epoch_size'] = len(state['loader'])
+        loss.backward()
+        optimizer.step()
 
-        for sample in tqdm(state['loader'], desc="Epoch {:d} train".format(state['epoch'] + 1)):
-            state['sample'] = sample
+        summary.log(iteration, 'train/acc', train_info['acc'])
+        summary.log(iteration, 'train/loss', train_info['loss'])
+        summary.log(iteration, 'train/time', time.time()-before)
 
-            state['optimizer'].zero_grad()
-            loss, state['output'] = state['model'].loss(state['sample'])
+        # Sample from validation
+        if iteration % 10 == 0 and val_iter is not None:
+            before = time.time()
 
-            loss.backward()
+            sample, __ = val_iter.next()
 
-            state['optimizer'].step()
+            _, val_info = model.eval_loss(sample)
 
-            state['t'] += 1
-            state['batch'] += 1
+            summary.log(iteration, 'val/acc', val_info['acc'])
+            summary.log(iteration, 'val/loss', val_info['loss'])
+            summary.log(iteration, 'val/time', time.time()-before)
 
-            #### On update
-            for field, meter in meters['train'].items():
-                meter.add(state['output'][field])
-            if state['batch'] % 5 == 0:
-                meter_vals = log_utils.extract_meter_values(meters)
-                print("Epoch {:02d}: {:s}".format(state['epoch'], log_utils.render_meter_values(meter_vals)))
-            ####
+        # End of epoch? -> schedule new learning rate
+        if new_epoch and iteration:
+            scheduler.step()
 
-            break
-
-        state['epoch'] += 1
-        state['batch'] = 0
-
-        #### On end epoch
-        if val_loader is not None:
-            if 'best_loss' not in hook_state:
-                hook_state['best_loss'] = np.inf
-            if 'wait' not in hook_state:
-                hook_state['wait'] = 0
-
-        if val_loader is not None:
-            #### Model evaluate
-            model.eval()
-
-            for field, meter in meters['val'].items():
-                meter.reset()
-
-            data_loader = tqdm(val_loader, desc="Epoch {:d} valid".format(state['epoch']))
-
-            for sample in val_loader:
-                _, output = model.eval_loss(sample)
-                for field, meter in meters['val'].items():
-                    meter.add(output[field])
-
-                break
-
-        meter_vals = log_utils.extract_meter_values(meters)
-        print("Epoch {:02d}: {:s}".format(state['epoch'], log_utils.render_meter_values(meter_vals)))
-        meter_vals['epoch'] = state['epoch']
-        with open(trace_file, 'a') as f:
-            json.dump(meter_vals, f)
-            f.write('\n')
-
-        if val_loader is not None:
-            if meter_vals['val']['loss'] < hook_state['best_loss']:
-                hook_state['best_loss'] = meter_vals['val']['loss']
-                print("==> best model (loss = {:0.6f}), saving model...".format(hook_state['best_loss']))
-
-                state['model'].cpu()
-                torch.save(state['model'], os.path.join(opt['log.exp_dir'], 'best_model.pt'))
-                if opt['data.cuda']:
-                    state['model'].cuda()
-
-                hook_state['wait'] = 0
-            else:
-                hook_state['wait'] += 1
-
-                if hook_state['wait'] > opt['train.patience']:
-                    print("==> patience {:d} exceeded".format(opt['train.patience']))
-                    state['stop'] = True
-        else:
-            state['model'].cpu()
-            torch.save(state['model'], os.path.join(opt['log.exp_dir'], 'best_model.pt'))
+        # Save model
+        if iteration>0 and new_epoch:
+            print 'Saving model'
+            model.cpu()
+            torch.save(model, os.path.join(opt['log.exp_dir'], 'current_model.pt'))
             if opt['data.cuda']:
-                state['model'].cuda()
+                model.cuda()
+
+        # Log
+
+        if iteration % 10 == 0:
+            print 'Iteration', iteration
+            summary.print_summary()
+
+        #### Save log
+        if iteration % 10 == 0:
+            with open(os.path.join(opt['log.exp_dir'], 'log.json'), 'wb') as fp:
+                json.dump(summary.logs, fp)
