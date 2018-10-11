@@ -135,7 +135,7 @@ def main(opt):
 
             optimizer.zero_grad()
 
-            loss, train_info = model.eval_loss(sample)
+            loss, train_info = model.loss(sample)
 
             loss.backward()
             optimizer.step()
