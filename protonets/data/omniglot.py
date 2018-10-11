@@ -35,7 +35,7 @@ def scale_image(key, height, width, d):
     d[key] = d[key].resize((height, width))
     return d
 
-def load_class_images(d):
+def load_class_images_actual(d):
     if d['class'] not in OMNIGLOT_CACHE:
         alphabet, character, rot = d['class'].split('/')
         image_dir = os.path.join(OMNIGLOT_DATA_DIR, 'data', alphabet, character)
@@ -58,6 +58,26 @@ def load_class_images(d):
             break # only need one sample because batch size equal to dataset length
 
     return { 'class': d['class'], 'data': OMNIGLOT_CACHE[d['class']] }
+
+def load_class_images(d, cache='.cache'):  # cache on disk
+    filename = '{}/{}.pth'.format(cache, d['class'].replace('/','_'))
+
+    if d['class'] not in OMNIGLOT_CACHE:
+        # cached on disk?
+        if os.path.exists(filename):
+            # Load from file
+            OMNIGLOT_CACHE[d['class']] = torch.load(filename)
+        # no; write cache
+        else:
+            sample = load_class_images_actual(d)
+            OMNIGLOT_CACHE[d['class']] = sample['data']
+            # Write to file
+            if not os.path.exists(cache):
+                os.makedirs(cache)
+            torch.save(OMNIGLOT_CACHE[d['class']], filename)
+
+    return { 'class': d['class'], 'data': OMNIGLOT_CACHE[d['class']] }
+
 
 def extract_episode(n_support, n_query, d):
     # data: N x C x H x W

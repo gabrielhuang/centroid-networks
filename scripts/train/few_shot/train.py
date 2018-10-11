@@ -73,6 +73,10 @@ def main(opt):
     def on_update(state):
         for field, meter in meters['train'].items():
             meter.add(state['output'][field])
+        if state['batch'] % 5 == 0:
+            meter_vals = log_utils.extract_meter_values(meters)
+            print("Epoch {:02d}: {:s}".format(state['epoch'], log_utils.render_meter_values(meter_vals)))
+
     engine.hooks['on_update'] = on_update
 
     def on_end_epoch(hook_state, state):

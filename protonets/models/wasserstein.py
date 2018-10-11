@@ -123,7 +123,7 @@ def cluster_wasserstein_flat(X, n_components, regularization=100., iterations=20
         soft_assignments = P / P.sum(0, keepdim=True)  # P_ij / sum_i P_ij is soft-assignment of cluster j
 
         if stop_gradient:
-            soft_assignments.detach_()
+            soft_assignments.detach_()  # how bad is that?
 
         # Minimization
         centroids = torch.matmul(soft_assignments.t(), X)
