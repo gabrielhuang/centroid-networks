@@ -137,12 +137,17 @@ def main(opt):
             optimizer.zero_grad()
 
             loss, train_info = model.loss(sample)
+            eval_loss, train_eval_info = model.eval_loss(sample)
 
-            loss.backward()
+            total_loss = loss + eval_loss
+
+            total_loss.backward()
             optimizer.step()
 
         summary.log(iteration, 'train/acc', train_info['acc'])
         summary.log(iteration, 'train/loss', train_info['loss'])
+        summary.log(iteration, 'train/eval_acc', train_eval_info['acc'])
+        summary.log(iteration, 'train/eval_loss', train_eval_info['loss'])
         summary.log(iteration, 'train/load_time', train_load_timer.interval)
         summary.log(iteration, 'train/bp_time', train_backprop_timer.interval)
 

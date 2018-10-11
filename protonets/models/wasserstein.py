@@ -115,7 +115,7 @@ def cluster_wasserstein_flat(X, n_components, regularization=100., iterations=20
 
         distances = get_pairwise_distances(X, centroids)
         # Expectation - Compute Sinkhorn distance
-        sinkhorn_iterations = 20 if iteration == 0 else 2
+        sinkhorn_iterations = 20 if iteration == 0 else 4
         dst, P, log_u, log_v = compute_sinkhorn_stable(distances,
                                                        regularization=regularization,
                                                        log_v=log_v,

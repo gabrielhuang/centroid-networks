@@ -120,7 +120,7 @@ class ClusterNet(Protonet):
         zq = z[n_class * n_support:]
 
         # Cluster support set into clusters
-        z_proto, data_centroid_assignment = wasserstein.cluster_wasserstein(zs, n_class)
+        z_proto, data_centroid_assignment = wasserstein.cluster_wasserstein(zs, n_class, stop_gradient=False)
 
         # Pairwise distance from query set to centroids
         dists = euclidean_dist(zq, z_proto)
