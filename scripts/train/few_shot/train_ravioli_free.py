@@ -43,6 +43,15 @@ class Summary(object):
             val = dict(tail).values()
             print '\t{}: {:.4f} +/- {:.4f}'.format(log, np.mean(val), np.std(val))
 
+class Timer:
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
+
 def make_infinite(iterator):
     while True:
         new_epoch = True
@@ -116,37 +125,43 @@ def main(opt):
     iterations = 1000000
     for iteration in xrange(iterations):
 
-
         # Sample from training
-        sample, new_epoch = train_iter.next()
+        with Timer() as train_load_timer:
+
+            sample, new_epoch = train_iter.next()
 
         # Compute loss; backprop
-        optimizer.zero_grad()
+        with Timer() as train_backprop_timer:
 
-        before = time.time()
-        loss, train_info = model.eval_loss(sample)
+            optimizer.zero_grad()
 
-        loss.backward()
-        optimizer.step()
+            loss, train_info = model.eval_loss(sample)
+
+            loss.backward()
+            optimizer.step()
 
         summary.log(iteration, 'train/acc', train_info['acc'])
         summary.log(iteration, 'train/loss', train_info['loss'])
-        summary.log(iteration, 'train/time', time.time()-before)
+        summary.log(iteration, 'train/load_time', train_load_timer.interval)
+        summary.log(iteration, 'train/bp_time', train_backprop_timer.interval)
 
         # Sample from validation
         if iteration % 10 == 0 and val_iter is not None:
-            before = time.time()
+            with Timer() as val_load_timer:
 
-            sample, __ = val_iter.next()
+                sample, __ = val_iter.next()
 
-            _, val_info = model.eval_loss(sample)
+            with Timer() as val_eval_timer:
+
+                _, val_info = model.eval_loss(sample)
 
             summary.log(iteration, 'val/acc', val_info['acc'])
             summary.log(iteration, 'val/loss', val_info['loss'])
-            summary.log(iteration, 'val/time', time.time()-before)
+            summary.log(iteration, 'val/load_time', val_load_timer.interval)
+            summary.log(iteration, 'val/eval_time', val_eval_timer.interval)
 
         # End of epoch? -> schedule new learning rate
-        if new_epoch and iteration:
+        if new_epoch and iteration>0:
             scheduler.step()
 
         # Save model
