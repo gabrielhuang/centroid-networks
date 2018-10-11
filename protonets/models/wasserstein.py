@@ -109,7 +109,7 @@ def cluster_wasserstein_flat(X, n_components, regularization=100., iterations=20
     '''
 
     assert len(X.size()) == 2, 'Please flatten input to cluster_wasserstein'
-    centroids = 0.01 * torch.randn((n_components, X.size()[1]))  # should be fine in most cases
+    centroids = 0.01 * torch.randn((n_components, X.size()[1])).to(X.device)  # should be fine in most cases
     log_v = None
     for iteration in xrange(iterations):
 
