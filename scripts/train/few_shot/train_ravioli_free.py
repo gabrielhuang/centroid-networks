@@ -1,6 +1,7 @@
 import os
 import json
 import time
+from collections import OrderedDict
 
 import numpy as np
 
@@ -22,14 +23,14 @@ import protonets.utils.log as log_utils
 ###########################################
 class Summary(object):
     def __init__(self):
-        self.logs = {}
+        self.logs = OrderedDict()
 
     def log(self, epoch, name, value):
         self.logs.setdefault(name, {})
         self.logs[name][epoch] = value
 
     def sorted(self):
-        sorted_logs = {}
+        sorted_logs = OrderedDict()
         for log in self.logs:
             sorted_logs[log] = self.logs[log].items()
         return sorted_logs
@@ -69,7 +70,7 @@ def main(opt):
 
     # save opts
     with open(os.path.join(opt['log.exp_dir'], 'opt.json'), 'w') as f:
-        json.dump(opt, f)
+        json.dump(opt, f, indent=4)
         f.write('\n')
 
     trace_file = os.path.join(opt['log.exp_dir'], 'trace.txt')
@@ -144,10 +145,10 @@ def main(opt):
             total_loss.backward()
             optimizer.step()
 
-        summary.log(iteration, 'train/acc', train_info['acc'])
-        summary.log(iteration, 'train/loss', train_info['loss'])
-        summary.log(iteration, 'train/eval_acc', train_eval_info['acc'])
-        summary.log(iteration, 'train/eval_loss', train_eval_info['loss'])
+        summary.log(iteration, 'train/SupervisedAcc', train_info['acc'])  # Supervised accuracy
+        summary.log(iteration, 'train/SupervisedLoss', train_info['loss'])  # Supervised cross-entropy
+        summary.log(iteration, 'train/ClusteringAcc', train_eval_info['acc'])  # Clustering Accuracy with cross-entropy assignment
+        summary.log(iteration, 'train/ClusteringLoss}', train_eval_info['loss'])  # Permuted cross-entropy
         summary.log(iteration, 'train/load_time', train_load_timer.interval)
         summary.log(iteration, 'train/bp_time', train_backprop_timer.interval)
 
@@ -164,10 +165,10 @@ def main(opt):
             other_sample, __ = other_train_iter.next()
             _, val_train_info = model.eval_loss(other_sample)
 
-            summary.log(iteration, 'val/acc', val_info['acc'])
-            summary.log(iteration, 'val/loss', val_info['loss'])
-            summary.log(iteration, 'val/train_acc', val_train_info['acc'])
-            summary.log(iteration, 'val/train_loss', val_train_info['loss'])
+            summary.log(iteration, 'val/ClusteringAcc', val_info['acc'])  # Clustering Accuracy with cross-entropy assignment
+            summary.log(iteration, 'val/ClusteringLoss', val_info['loss'])  # Permuted cross-entropy
+            summary.log(iteration, 'val/TrainClusteringAcc', val_train_info['acc'])  # Same things on meta-training set (sanity check)
+            summary.log(iteration, 'val/TrainClusteringLoss', val_train_info['loss'])  #
             summary.log(iteration, 'val/load_time', val_load_timer.interval)
             summary.log(iteration, 'val/eval_time', val_eval_timer.interval)
 
@@ -190,6 +191,9 @@ def main(opt):
             summary.print_summary()
 
         #### Save log
-        if iteration % 10 == 0:
-            with open(os.path.join(opt['log.exp_dir'], 'log.json'), 'wb') as fp:
-                json.dump(summary.logs, fp)
+        if iteration % 100 == 0 or iteration < 10:
+            try:
+                with open(os.path.join(opt['log.exp_dir'], 'log.json'), 'wb') as fp:
+                    json.dump(summary.logs, fp)
+            except Exception as e:
+                print 'Could not dump log file! Ignoring for now', e
