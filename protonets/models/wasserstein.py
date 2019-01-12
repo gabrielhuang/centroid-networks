@@ -1,4 +1,6 @@
+import numpy as np
 import torch
+from scipy.optimize import linear_sum_assignment as hungarian
 
 
 def compute_sinkhorn(m, r=None, c=None, regularization=100., iterations=40):
@@ -141,3 +143,13 @@ def cluster_wasserstein(X, n_components, regularization=100., iterations=20, sto
     size[0] = n_components
     centroids = centroids_flat.view(size)
     return centroids, P
+
+
+def compute_hungarian(m):
+    assert m.size()[0] == m.size()[1]
+    m_numpy = m.detach().numpy()
+    row, col = hungarian(m_numpy)
+    matrix = np.zeros(m.size())
+    matrix[row, col] = 1. / float(len(m))
+    cost = (matrix * m_numpy).sum()
+    return cost, torch.tensor(matrix), col

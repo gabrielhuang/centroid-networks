@@ -156,9 +156,28 @@ class ClusterNet(Protonet):
 
         acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
 
+        # HUNGARIAN ALGORITHM
+        # compute the same with hungarian
+        #hungarian_loss, hungarian_assignment = wasserstein.compute_hungarian(permutation_cost)
+        #print 'Hungarian', hungarian_loss
+        #print 'Sinkhorn', loss_val
+
+        __, argmax = log_p_y.view(n_class*n_query, n_class).max(1)
+        one_hot_prediction = torch.zeros((n_class*n_query, n_class))
+        one_hot_prediction[range(n_class*n_query), argmax] = 1.
+        accuracy_permutation_cost = -one_hot_prediction.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
+        accuracy_permutation_cost = accuracy_permutation_cost.sum(1).sum(0)
+
+        __, __, cols = wasserstein.compute_hungarian(accuracy_permutation_cost)
+        permuted_prediction = cols[argmax]
+        clustering_accuracy = (permuted_prediction == target_inds.numpy().flatten()).mean()
+
+        #print 'Clustering Accuracy', clustering_accuracy
+
         return loss_val, {
             'loss': loss_val.item(),
-            'acc': acc_val.item()
+            '_ClusteringAccCE': acc_val.item(),
+            'ClusteringAcc': clustering_accuracy
         }
 
 

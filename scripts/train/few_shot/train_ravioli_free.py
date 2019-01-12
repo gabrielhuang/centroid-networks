@@ -147,8 +147,9 @@ def main(opt):
 
         summary.log(iteration, 'train/SupervisedAcc', train_info['acc'])  # Supervised accuracy
         summary.log(iteration, 'train/SupervisedLoss', train_info['loss'])  # Supervised cross-entropy
-        summary.log(iteration, 'train/ClusteringAcc', train_eval_info['acc'])  # Clustering Accuracy with cross-entropy assignment
-        summary.log(iteration, 'train/ClusteringLoss}', train_eval_info['loss'])  # Permuted cross-entropy
+        summary.log(iteration, 'train/ClusteringAcc', train_eval_info['ClusteringAcc'])  # Clustering Accuracy with cross-entropy assignment
+        summary.log(iteration, 'train/_ClusteringAccCE', train_eval_info['_ClusteringAccCE'])  # Clustering Accuracy with cross-entropy assignment
+        summary.log(iteration, 'train/ClusteringLoss', train_eval_info['loss'])  # Permuted cross-entropy
         summary.log(iteration, 'train/load_time', train_load_timer.interval)
         summary.log(iteration, 'train/bp_time', train_backprop_timer.interval)
 
@@ -165,9 +166,10 @@ def main(opt):
             other_sample, __ = other_train_iter.next()
             _, val_train_info = model.eval_loss(other_sample)
 
-            summary.log(iteration, 'val/ClusteringAcc', val_info['acc'])  # Clustering Accuracy with cross-entropy assignment
+            summary.log(iteration, 'val/ClusteringAcc', val_info['ClusteringAcc'])  # Clustering Accuracy with cross-entropy assignment
+            summary.log(iteration, 'val/_ClusteringAccCE', val_info['_ClusteringAccCE'])  # Clustering Accuracy with cross-entropy assignment
             summary.log(iteration, 'val/ClusteringLoss', val_info['loss'])  # Permuted cross-entropy
-            summary.log(iteration, 'val/TrainClusteringAcc', val_train_info['acc'])  # Same things on meta-training set (sanity check)
+            summary.log(iteration, 'val/TrainClusteringAcc', val_train_info['ClusteringAcc'])  # Same things on meta-training set (sanity check)
             summary.log(iteration, 'val/TrainClusteringLoss', val_train_info['loss'])  #
             summary.log(iteration, 'val/load_time', val_load_timer.interval)
             summary.log(iteration, 'val/eval_time', val_eval_timer.interval)
