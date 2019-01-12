@@ -146,8 +146,10 @@ class ClusterNet(Protonet):
         #log_p_y_permuted[n, k, a] = n_class * \sum_b log_p_y[n, k, b] * assignment[a,b]
 
         # Permuted log probabilities
-        loss_val, assignment, __, __ = wasserstein.compute_sinkhorn_stable(
+        loss_val_unnormalized, assignment, __, __ = wasserstein.compute_sinkhorn_stable(
             permutation_cost, regularization=100., iterations=10)
+
+        loss_val = loss_val_unnormalized / n_query  # normalize so it looks like a normal cross entropy
 
         log_p_y_permuted = n_class * torch.matmul(log_p_y, assignment)
 
