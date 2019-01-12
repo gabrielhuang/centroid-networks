@@ -140,7 +140,7 @@ def main(opt):
             loss, train_info = model.loss(sample)
             eval_loss, train_eval_info = model.eval_loss(sample)
 
-            total_loss = loss + eval_loss
+            total_loss = loss #+ eval_loss
 
             total_loss.backward()
             optimizer.step()

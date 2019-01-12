@@ -149,7 +149,7 @@ class ClusterNet(Protonet):
         loss_val, assignment, __, __ = wasserstein.compute_sinkhorn_stable(
             permutation_cost, regularization=100., iterations=10)
 
-        log_p_y_permuted = n_class * torch.matmul(log_p_y, assignment.t())
+        log_p_y_permuted = n_class * torch.matmul(log_p_y, assignment)
 
         #_, y_hat = log_p_y.max(2)
         __, y_hat = log_p_y_permuted.max(2)
