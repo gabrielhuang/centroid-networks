@@ -32,7 +32,7 @@ class Summary(object):
     def sorted(self):
         sorted_logs = OrderedDict()
         for log in self.logs:
-            sorted_logs[log] = self.logs[log].items()
+            sorted_logs[log] = list(sorted(self.logs[log].items()))
         return sorted_logs
 
     def print_summary(self, n_avg=50):
@@ -140,11 +140,10 @@ def main(opt):
         # Compute loss; backprop
         with Timer() as train_backprop_timer:
 
-            optimizer.zero_grad()
 
             # TODO: integreate regularization/temperature in non-sinkhorn mode as well
-            loss, train_info = model.loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
-            eval_loss, train_eval_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
+            loss, train_info = model.loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
+            eval_loss, train_eval_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=['rawinput'])
 
             if opt['mode'] == 'mix':
                 total_loss = loss + eval_loss
@@ -162,8 +161,11 @@ def main(opt):
                 summary.log(iteration, 'train/CentroidLoss', centroid_loss.item())  # Supervised accuracy
             summary.log(iteration, 'train/CentroidLossUnscaled', train_info['z_proto_var'].item())  # Supervised accuracy
 
-            total_loss.backward()
-            optimizer.step()
+            if not opt['rawinput']:
+                # No need to backprop in rawinput mode
+                optimizer.zero_grad()
+                total_loss.backward()
+                optimizer.step()
 
         summary.log(iteration, 'train/SupervisedAcc', train_info['acc'])  # Supervised accuracy
         summary.log(iteration, 'train/SupervisedLoss', train_info['loss'])  # Supervised cross-entropy
@@ -182,10 +184,12 @@ def main(opt):
 
             with Timer() as val_eval_timer:
 
-                _, val_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
+                _, val_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=['rawinput'])
 
             other_sample, __ = other_train_iter.next()
-            _, val_train_info = model.eval_loss(other_sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
+            _, val_train_info = model.eval_loss(other_sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=['rawinput'])
+
+            print 'Immediate', val_info['ClusteringAcc']
 
             summary.log(iteration, 'val/ClusteringAcc', val_info['ClusteringAcc'])  # Clustering Accuracy with cross-entropy assignment
             summary.log(iteration, 'val/_ClusteringAccCE', val_info['_ClusteringAccCE'])  # Clustering Accuracy with cross-entropy assignment
@@ -201,11 +205,14 @@ def main(opt):
 
         # Save model
         if iteration>0 and new_epoch:
-            print 'Saving model'
-            model.cpu()
-            torch.save(model, os.path.join(opt['log.exp_dir'], 'current_model.pt'))
-            if opt['data.cuda']:
-                model.cuda()
+            if opt['rawinput']:
+                print 'No model to save in raw_input mode'
+            else:
+                print 'Saving model'
+                model.cpu()
+                torch.save(model, os.path.join(opt['log.exp_dir'], 'current_model.pt'))
+                if opt['data.cuda']:
+                    model.cuda()
 
         # Log
 
