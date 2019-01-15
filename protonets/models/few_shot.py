@@ -51,9 +51,8 @@ class Protonet(nn.Module):
 
         if not supervised_sinkhorn_loss:
             # Default protonet. Assignment is softmax on squared cluster-sample distance
-            # todo: verify the scaling is correct here
             # divide/multiply by correct temperature/regularization
-            log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1)
+            log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1) * regularization
         else:
             # This part changes
             # Assignment is now regularized, optimal transport, but transportation cost is given by distance matrix.
