@@ -69,6 +69,11 @@ parser.add_argument('--log.exp_dir', type=str, default=default_exp_dir, metavar=
 # which version to use
 parser.add_argument('--ravioli', type=int, default=0, help='1: use original code; 0: big fat script')
 
+# scheduling of leraning to cluster training
+parser.add_argument('--mode', default='mix', choices=['mix', 'supervised', 'mixwait', 'calibratedkmeans'], help='which mode to use')
+parser.add_argument('--centroid-loss', default=0., type=float, help='centroid loss penalty')
+parser.add_argument('--checkpoint', default='', help='load model checkpoint')
+
 args = vars(parser.parse_args())
 
 if args['ravioli']:

@@ -109,6 +109,10 @@ def main(opt):
     ###########################################
     model = model_utils.load(opt)
 
+    if opt['checkpoint']:
+        print 'Loading from checkpoint', opt['checkpoint']
+        model = torch.load(opt['checkpoint'])
+
     if opt['data.cuda']:
         model.cuda()
 
@@ -125,6 +129,7 @@ def main(opt):
 
     #### Start of training loop
     iterations = 1000000
+    gamma = 1. if opt['mode'] == 'calibratedkmeans' else 100.
     for iteration in xrange(iterations):
 
         # Sample from training
@@ -138,9 +143,23 @@ def main(opt):
             optimizer.zero_grad()
 
             loss, train_info = model.loss(sample)
-            eval_loss, train_eval_info = model.eval_loss(sample)
+            eval_loss, train_eval_info = model.eval_loss(sample, regularization=gamma)
 
-            total_loss = loss + eval_loss
+            if opt['mode'] == 'mix':
+                total_loss = loss + eval_loss
+            elif opt['mode'] in ['supervised', 'calibratedkmeans']:
+                total_loss = loss
+            elif opt['mode'] == 'mixwait':
+                if iteration < 500:
+                    total_loss = loss
+                else:
+                    total_loss = loss + eval_loss
+
+            if opt['centroid_loss'] > 0. :
+                centroid_loss = opt['centroid_loss'] * train_info['z_proto_var']
+                total_loss = total_loss + centroid_loss
+                summary.log(iteration, 'train/CentroidLoss', centroid_loss.item())  # Supervised accuracy
+            summary.log(iteration, 'train/CentroidLossUnscaled', train_info['z_proto_var'].item())  # Supervised accuracy
 
             total_loss.backward()
             optimizer.step()
@@ -152,6 +171,7 @@ def main(opt):
         summary.log(iteration, 'train/ClusteringLoss', train_eval_info['loss'])  # Permuted cross-entropy
         summary.log(iteration, 'train/load_time', train_load_timer.interval)
         summary.log(iteration, 'train/bp_time', train_backprop_timer.interval)
+        summary.log(iteration, 'train/TotalLoss', total_loss.item())  # Supervised accuracy
 
         # Sample from validation
         if iteration % 10 == 0 and val_iter is not None:
@@ -161,10 +181,10 @@ def main(opt):
 
             with Timer() as val_eval_timer:
 
-                _, val_info = model.eval_loss(sample)
+                _, val_info = model.eval_loss(sample, regularization=gamma)
 
             other_sample, __ = other_train_iter.next()
-            _, val_train_info = model.eval_loss(other_sample)
+            _, val_train_info = model.eval_loss(other_sample, regularization=gamma)
 
             summary.log(iteration, 'val/ClusteringAcc', val_info['ClusteringAcc'])  # Clustering Accuracy with cross-entropy assignment
             summary.log(iteration, 'val/_ClusteringAccCE', val_info['_ClusteringAccCE'])  # Clustering Accuracy with cross-entropy assignment

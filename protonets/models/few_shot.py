@@ -44,6 +44,7 @@ class Protonet(nn.Module):
         z_dim = z.size(-1)
 
         z_proto = z[:n_class*n_support].view(n_class, n_support, z_dim).mean(1)
+        z_proto_var = ((z_proto - z[:n_class*n_support].view(n_class, n_support, z_dim).mean(1)[:, None, :])**2).mean()
         zq = z[n_class*n_support:]
 
         dists = euclidean_dist(zq, z_proto)
@@ -57,7 +58,8 @@ class Protonet(nn.Module):
 
         return loss_val, {
             'loss': loss_val.item(),
-            'acc': acc_val.item()
+            'acc': acc_val.item(),
+            'z_proto_var': z_proto_var
         }
 
     def eval_loss(self, sample):
@@ -93,7 +95,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def eval_loss(self, sample):
+    def eval_loss(self, sample, regularization):
         xs = Variable(sample['xs'])  # support
         xq = Variable(sample['xq'])  # query
 
@@ -120,7 +122,11 @@ class ClusterNet(Protonet):
         zq = z[n_class * n_support:]
 
         # Cluster support set into clusters
-        z_proto, data_centroid_assignment = wasserstein.cluster_wasserstein(zs, n_class, stop_gradient=False)
+        z_proto, data_centroid_assignment = wasserstein.cluster_wasserstein(zs, n_class, stop_gradient=False, regularization=regularization)
+
+        # So it turns out the wasserstein assignments are not the same as the log_p_y assignments
+        # one relies on optimal transport while the other relies on sample-centroid distances ...
+
 
         # Pairwise distance from query set to centroids
         dists = euclidean_dist(zq, z_proto)
