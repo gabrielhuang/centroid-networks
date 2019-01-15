@@ -70,6 +70,7 @@ parser.add_argument('--log.exp_dir', type=str, default=default_exp_dir, metavar=
 parser.add_argument('--ravioli', type=int, default=0, help='1: use original code; 0: big fat script')
 
 # Unsupervised Few-shot learning specific parameters
+parser.add_argument('--iterations', default=100000, type=int, help='number of iterations (i.e. episodes)')
 parser.add_argument('--checkpoint', default='', help='load model checkpoint')
 parser.add_argument('--mode', default='mix', choices=['mix', 'supervised', 'mixwait'], help='which mode to use')
 parser.add_argument('--centroid-loss', default=0., type=float, help='centroid loss penalty')

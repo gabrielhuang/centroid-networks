@@ -128,9 +128,8 @@ def main(opt):
     summary = Summary()
 
     #### Start of training loop
-    iterations = 1000000
     regularization = 1. / opt['temperature']
-    for iteration in xrange(iterations):
+    for iteration in xrange(opt['iterations']):
 
         # Sample from training
         with Timer() as train_load_timer:
