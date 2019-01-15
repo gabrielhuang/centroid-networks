@@ -70,9 +70,12 @@ parser.add_argument('--log.exp_dir', type=str, default=default_exp_dir, metavar=
 parser.add_argument('--ravioli', type=int, default=0, help='1: use original code; 0: big fat script')
 
 # scheduling of leraning to cluster training
-parser.add_argument('--mode', default='mix', choices=['mix', 'supervised', 'mixwait', 'calibratedkmeans'], help='which mode to use')
+parser.add_argument('--mode', default='mix', choices=['mix', 'supervised', 'mixwait'], help='which mode to use')
 parser.add_argument('--centroid-loss', default=0., type=float, help='centroid loss penalty')
 parser.add_argument('--checkpoint', default='', help='load model checkpoint')
+parser.add_argument('--supervisedsinkhorn', required=True, type=int, help='supervised sinkhorn or softmax matching')
+parser.add_argument('--temperature', default=1., type=float, help='temperature for softmax and assignments')
+# always the same for meta-train and meta-validation unless otherwise specified
 
 args = vars(parser.parse_args())
 

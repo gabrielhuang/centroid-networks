@@ -129,7 +129,7 @@ def main(opt):
 
     #### Start of training loop
     iterations = 1000000
-    gamma = 1. if opt['mode'] == 'calibratedkmeans' else 100.
+    regularization = 1. / opt['temperature']
     for iteration in xrange(iterations):
 
         # Sample from training
@@ -142,12 +142,13 @@ def main(opt):
 
             optimizer.zero_grad()
 
-            loss, train_info = model.loss(sample)
-            eval_loss, train_eval_info = model.eval_loss(sample, regularization=gamma)
+            # TODO: integreate regularization/temperature in non-sinkhorn mode as well
+            loss, train_info = model.loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
+            eval_loss, train_eval_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
 
             if opt['mode'] == 'mix':
                 total_loss = loss + eval_loss
-            elif opt['mode'] in ['supervised', 'calibratedkmeans']:
+            elif opt['mode'] == 'supervised':
                 total_loss = loss
             elif opt['mode'] == 'mixwait':
                 if iteration < 500:
@@ -181,10 +182,10 @@ def main(opt):
 
             with Timer() as val_eval_timer:
 
-                _, val_info = model.eval_loss(sample, regularization=gamma)
+                _, val_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
 
             other_sample, __ = other_train_iter.next()
-            _, val_train_info = model.eval_loss(other_sample, regularization=gamma)
+            _, val_train_info = model.eval_loss(other_sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
 
             summary.log(iteration, 'val/ClusteringAcc', val_info['ClusteringAcc'])  # Clustering Accuracy with cross-entropy assignment
             summary.log(iteration, 'val/_ClusteringAccCE', val_info['_ClusteringAccCE'])  # Clustering Accuracy with cross-entropy assignment

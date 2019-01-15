@@ -22,7 +22,7 @@ class Protonet(nn.Module):
 
         self.encoder = encoder
 
-    def loss(self, sample):
+    def loss(self, sample, regularization, supervised_sinkhorn_loss):
         xs = Variable(sample['xs']) # support
         xq = Variable(sample['xq']) # query
 
@@ -49,7 +49,19 @@ class Protonet(nn.Module):
 
         dists = euclidean_dist(zq, z_proto)
 
-        log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1)
+        if not supervised_sinkhorn_loss:
+            # Default protonet. Assignment is softmax on squared cluster-sample distance
+            # todo: verify the scaling is correct here
+            # divide/multiply by correct temperature/regularization
+            log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1)
+        else:
+            # This part changes
+            # Assignment is now regularized, optimal transport, but transportation cost is given by distance matrix.
+            # this differs from previously because the regularization is slightly different
+            # todo: grid search on iterations
+            __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
+                dists, regularization=regularization, iterations=10)
+            log_p_y = log_assignment.view(n_class, n_query, -1)
 
         loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
 
@@ -95,7 +107,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def eval_loss(self, sample, regularization):
+    def eval_loss(self, sample, regularization, supervised_sinkhorn_loss):
         xs = Variable(sample['xs'])  # support
         xq = Variable(sample['xq'])  # query
 
@@ -127,12 +139,21 @@ class ClusterNet(Protonet):
         # So it turns out the wasserstein assignments are not the same as the log_p_y assignments
         # one relies on optimal transport while the other relies on sample-centroid distances ...
 
-
         # Pairwise distance from query set to centroids
         dists = euclidean_dist(zq, z_proto)
 
-        # Unpermuted Log Probabilities
-        log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1)
+        if supervised_sinkhorn_loss:
+            # Optimal assignment (could have kept previous result probably)
+            __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
+                dists, regularization=regularization, iterations=10)
+            log_p_y = log_assignment.view(n_class, n_query, -1)
+        else:
+            # Classic softmax
+
+            # Unpermuted Log Probabilities
+            log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1)
+
+
 
         target_inds_dummy = torch.zeros((n_class*n_query, n_class)).to(xs.device)
         target_inds_dummy[range(n_class*n_query), target_inds.view(-1)] = 1. # transform targets to one-hot
@@ -152,7 +173,7 @@ class ClusterNet(Protonet):
         #log_p_y_permuted[n, k, a] = n_class * \sum_b log_p_y[n, k, b] * assignment[a,b]
 
         # Permuted log probabilities
-        loss_val_unnormalized, assignment, __, __ = wasserstein.compute_sinkhorn_stable(
+        loss_val_unnormalized, assignment, __, __, __ = wasserstein.compute_sinkhorn_stable(
             permutation_cost, regularization=100., iterations=10)
 
         loss_val = loss_val_unnormalized / n_query  # normalize so it looks like a normal cross entropy
@@ -187,7 +208,6 @@ class ClusterNet(Protonet):
             '_ClusteringAccCE': acc_val.item(),
             'ClusteringAcc': clustering_accuracy
         }
-
 
 
 @register_model('clusternet_conv')

@@ -83,10 +83,11 @@ def compute_sinkhorn_stable(m, r=None, c=None, log_v=None, regularization=100., 
         log_v = log_c - log_sum_exp(log_u[:, None] + log_K, dim=0)
 
     # Compute optimal plan, cost, return everything
-    P = torch.exp(log_u[:, None] + log_K + log_v[None, :])  # transport plan
+    log_P = log_u[:, None] + log_K + log_v[None, :]
+    P = torch.exp(log_P)  # transport plan
     dst = (P * m).sum()
 
-    return dst, P, log_u, log_v
+    return dst, P, log_P, log_u, log_v
 
 
 def get_pairwise_distances(m, n):
@@ -118,11 +119,12 @@ def cluster_wasserstein_flat(X, n_components, regularization=100., iterations=20
         distances = get_pairwise_distances(X, centroids)
         # Expectation - Compute Sinkhorn distance
         sinkhorn_iterations = 20 if iteration == 0 else 4
-        dst, P, log_u, log_v = compute_sinkhorn_stable(distances,
+        dst, P, log_P, log_u, log_v = compute_sinkhorn_stable(distances,
                                                        regularization=regularization,
                                                        log_v=log_v,
                                                        iterations=sinkhorn_iterations)
         soft_assignments = P / P.sum(0, keepdim=True)  # P_ij / sum_i P_ij is soft-assignment of cluster j
+        # TODO: maybe dividing by constant will simplify graphs?
 
         if stop_gradient:
             soft_assignments.detach_()  # how bad is that?
