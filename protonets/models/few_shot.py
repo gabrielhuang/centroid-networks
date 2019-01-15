@@ -22,7 +22,7 @@ class Protonet(nn.Module):
 
         self.encoder = encoder
 
-    def loss(self, sample, regularization, supervised_sinkhorn_loss):
+    def loss(self, sample, regularization, supervised_sinkhorn_loss, raw_input):
         xs = Variable(sample['xs']) # support
         xq = Variable(sample['xq']) # query
 
@@ -40,7 +40,11 @@ class Protonet(nn.Module):
         x = torch.cat([xs.view(n_class * n_support, *xs.size()[2:]),
                        xq.view(n_class * n_query, *xq.size()[2:])], 0)
 
-        z = self.encoder.forward(x)
+        if raw_input:
+            # No embedding, z = x
+            z = x.view(len(x), -1)
+        else:
+            z = self.encoder.forward(x)
         z_dim = z.size(-1)
 
         z_proto = z[:n_class*n_support].view(n_class, n_support, z_dim).mean(1)
@@ -52,7 +56,7 @@ class Protonet(nn.Module):
         if not supervised_sinkhorn_loss:
             # Default protonet. Assignment is softmax on squared cluster-sample distance
             # divide/multiply by correct temperature/regularization
-            log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1) * regularization
+            log_p_y = F.log_softmax(-dists*regularization, dim=1).view(n_class, n_query, -1)
         else:
             # This part changes
             # Assignment is now regularized, optimal transport, but transportation cost is given by distance matrix.
@@ -106,7 +110,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def eval_loss(self, sample, regularization, supervised_sinkhorn_loss):
+    def eval_loss(self, sample, regularization, supervised_sinkhorn_loss, raw_input):
         xs = Variable(sample['xs'])  # support
         xq = Variable(sample['xq'])  # query
 
@@ -124,7 +128,11 @@ class ClusterNet(Protonet):
         x = torch.cat([xs.view(n_class * n_support, *xs.size()[2:]),
                        xq.view(n_class * n_query, *xq.size()[2:])], 0)
 
-        z = self.encoder.forward(x)
+        if raw_input:
+            # No embedding, z = x
+            z = x.view(len(x), -1)
+        else:
+            z = self.encoder.forward(x)
         z_dim = z.size(-1)
 
         #z_proto = z[:n_class * n_support].view(n_class, n_support, z_dim).mean(1)
@@ -150,7 +158,7 @@ class ClusterNet(Protonet):
             # Classic softmax
 
             # Unpermuted Log Probabilities
-            log_p_y = F.log_softmax(-dists, dim=1).view(n_class, n_query, -1)
+            log_p_y = F.log_softmax(-dists*regularization, dim=1).view(n_class, n_query, -1)
 
 
 
