@@ -142,7 +142,7 @@ def main(opt):
 
             # TODO: integreate regularization/temperature in non-sinkhorn mode as well
             loss, train_info = model.loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
-            eval_loss, train_eval_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=['rawinput'])
+            eval_loss, train_eval_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
 
             if opt['mode'] == 'mix':
                 total_loss = loss + eval_loss
@@ -183,10 +183,10 @@ def main(opt):
 
             with Timer() as val_eval_timer:
 
-                _, val_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=['rawinput'])
+                _, val_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
 
             other_sample, __ = other_train_iter.next()
-            _, val_train_info = model.eval_loss(other_sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=['rawinput'])
+            _, val_train_info = model.eval_loss(other_sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
 
             print 'Immediate', val_info['ClusteringAcc']
 
