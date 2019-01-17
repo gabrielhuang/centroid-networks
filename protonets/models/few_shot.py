@@ -110,7 +110,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def eval_loss(self, sample, regularization, supervised_sinkhorn_loss, raw_input):
+    def eval_loss(self, sample, regularization, supervised_sinkhorn_loss, raw_input, learning_to_cluster=None):
         xs = Variable(sample['xs'])  # support
         xq = Variable(sample['xq'])  # query
 
@@ -145,6 +145,10 @@ class ClusterNet(Protonet):
 
         # So it turns out the wasserstein assignments are not the same as the log_p_y assignments
         # one relies on optimal transport while the other relies on sample-centroid distances ...
+
+        if setting == 'learning_to_cluster':
+            pass
+            # TODO: finisnh that
 
         # Pairwise distance from query set to centroids
         dists = euclidean_dist(zq, z_proto)
