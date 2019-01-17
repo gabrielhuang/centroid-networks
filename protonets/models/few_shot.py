@@ -86,6 +86,7 @@ class Protonet(nn.Module):
         z_proto = z_support.view(n_class, n_support, z_dim).mean(1)
         # THis was clearly wrong!
         #class_variance = ((z_proto - z_support.view(n_class, n_support, z_dim).mean(1)[:, None, :])**2).mean()
+        class_variance = ((z_support - z_proto[:, None, :])**2).mean()
 
         # Compute query-prototype distances
         query_dists = euclidean_dist(z_query, z_proto)
