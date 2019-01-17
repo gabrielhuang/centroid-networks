@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -166,8 +167,9 @@ class ClusterNet(Protonet):
 
 
 
-        target_inds_dummy = torch.zeros((n_class*n_query, n_class)).to(xs.device)
-        target_inds_dummy[range(n_class*n_query), target_inds.view(-1)] = 1. # transform targets to one-hot
+        target_inds_dummy = np.zeros((n_class*n_query, n_class))
+        target_inds_dummy[range(n_class*n_query), target_inds.cpu().numpy().flatten()] = 1. # transform targets to one-hot
+        target_inds_dummy = torch.FloatTensor(target_inds_dummy).to(xs.device)
 
         # Build permutation cost matrix
         permutation_cost = -log_p_y.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
@@ -203,14 +205,15 @@ class ClusterNet(Protonet):
         #print 'Sinkhorn', loss_val
 
         __, argmax = log_p_y.view(n_class*n_query, n_class).max(1)
-        one_hot_prediction = torch.zeros((n_class*n_query, n_class))
+        argmax = argmax.cpu()  # no need to backprop anyways
+        one_hot_prediction = torch.zeros((n_class*n_query, n_class)).to(xs.device)
         one_hot_prediction[range(n_class*n_query), argmax] = 1.
         accuracy_permutation_cost = -one_hot_prediction.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
         accuracy_permutation_cost = accuracy_permutation_cost.sum(1).sum(0)
 
         __, __, cols = wasserstein.compute_hungarian(accuracy_permutation_cost)
         permuted_prediction = cols[argmax]
-        clustering_accuracy = (permuted_prediction == target_inds.numpy().flatten()).mean()
+        clustering_accuracy = (permuted_prediction == target_inds.cpu().numpy().flatten()).mean()
 
         #print 'Clustering Accuracy', clustering_accuracy
 
