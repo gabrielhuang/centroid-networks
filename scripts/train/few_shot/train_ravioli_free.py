@@ -163,7 +163,7 @@ def main(opt):
                 total_loss.backward()
                 optimizer.step()
 
-        summary.log(iteration, 'train/SupervisedAcc', train_supervised_info['SupervisedAccuracy'])
+        summary.log(iteration, 'train/SupervisedAcc', train_supervised_info['SupervisedAcc'])
         summary.log(iteration, 'train/SupervisedLoss', train_supervised_info['SupervisedLoss'])
         summary.log(iteration, 'train/SupportClusteringAcc', train_clustering_info['SupportClusteringAcc'])
         summary.log(iteration, 'train/QueryClusteringAcc', train_clustering_info['QueryClusteringAcc'])
@@ -185,9 +185,9 @@ def main(opt):
                 __, val_supervised_info = model.supervised_loss(embedding_val, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
                 __, val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
 
-            print 'Immediate', val_clustering_info['ClusteringAcc']
+            print 'Immediate', val_clustering_info['SupportClusteringAcc']
 
-            summary.log(iteration, 'val/SupervisedAcc', val_supervised_info['SupervisedAccuracy'])
+            summary.log(iteration, 'val/SupervisedAcc', val_supervised_info['SupervisedAcc'])
             summary.log(iteration, 'val/SupervisedLoss', val_supervised_info['SupervisedLoss'])
             summary.log(iteration, 'val/SupportClusteringAcc', val_clustering_info['SupportClusteringAcc'])
             summary.log(iteration, 'val/QueryClusteringAcc', val_clustering_info['QueryClusteringAcc'])

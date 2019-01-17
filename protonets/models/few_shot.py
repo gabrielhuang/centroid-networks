@@ -85,11 +85,14 @@ class Protonet(nn.Module):
         # Compute prototypes
         z_proto = z_support.view(n_class, n_support, z_dim).mean(1)
         # THis was clearly wrong!
-        #class_variance = ((z_proto - z_support.view(n_class, n_support, z_dim).mean(1)[:, None, :])**2).mean()
-        class_variance = ((z_support - z_proto[:, None, :])**2).mean()
+        bad_class_variance = ((z_proto - z_support.view(n_class, n_support, z_dim).mean(1)[:, None, :])**2).mean()
+
+        # We average variance over all n_class*n_support points, but not over z_dim (not necessarily meaningful for z_dim)
+        # TODO: check if that's the best normalization
+        class_variance = ((z_support - z_proto[:, None, :])**2).mean(2).mean(1).sum()
 
         # Compute query-prototype distances
-        query_dists = euclidean_dist(z_query, z_proto)
+        query_dists = euclidean_dist(z_query.view(n_class*n_query, z_dim), z_proto)
 
         # Assign query points to prototypes
         if not supervised_sinkhorn_loss:
@@ -183,20 +186,23 @@ class ClusterNet(Protonet):
         n_query = z_query.size(1)
         z_dim = z_support.size(-1)
 
+        z_support_flat = z_support.view(n_class*n_support, z_dim)
+        z_query_flat = z_query.view(n_class*n_query, z_dim)
+
         target_inds_support = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
         target_inds_query = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
 
         # Build support set targets
         target_inds_dummy_support = np.zeros((n_class*n_query, n_class))
         target_inds_dummy_support[range(n_class*n_query), target_inds_support.cpu().numpy().flatten()] = 1. # transform targets to one-hot
-        target_inds_dummy_support = torch.FloatTensor(target_inds_dummy_support).to(xs.device)
+        target_inds_dummy_support = torch.FloatTensor(target_inds_dummy_support).to(z_query.device)
 
         # Cluster support set into clusters (both for learning to cluster and unsupervised few shot learning)
-        z_centroid, data_centroid_assignment = wasserstein.cluster_wasserstein(z_support, n_class, stop_gradient=False, regularization=regularization)
+        z_centroid, data_centroid_assignment = wasserstein.cluster_wasserstein(z_support_flat, n_class, stop_gradient=False, regularization=regularization)
 
         # Pairwise distance from query set to centroids
-        support_dists = euclidean_dist(z_support, z_centroid)
-        query_dists = euclidean_dist(z_query, z_centroid)
+        support_dists = euclidean_dist(z_support_flat, z_centroid)
+        query_dists = euclidean_dist(z_query_flat, z_centroid)
 
         # Assign support set points to centroids (using either Sinkhorn or Softmax)
         if supervised_sinkhorn_loss:
@@ -205,15 +211,16 @@ class ClusterNet(Protonet):
             __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
                 support_dists, regularization=regularization, iterations=10)
             # Predictions are already the optimal assignment
-            log_p_y_support = log_assignment.view(n_class, n_query, -1)
+            log_p_y_support = log_assignment
 
         else: # Classic softmax
 
             # Unpermuted Log Probabilities
-            log_p_y_support = F.log_softmax(-support_dists*regularization, dim=1).view(n_class, n_query, -1)
+            log_p_y_support = F.log_softmax(-support_dists*regularization, dim=1)
 
         # Build accuracy permutation matrix (to match support with ground truth)
-        __, y_hat_support = log_p_y_support.view(n_class * n_support, n_class).max(1)
+        # this could be cleaner using "gather"
+        __, y_hat_support = log_p_y_support.max(1)
         y_hat_support = y_hat_support.cpu().numpy()  # to numpy, no need to backprop anyways
         one_hot_prediction = torch.zeros((n_class * n_support, n_class)).to(z_support.device)
         one_hot_prediction[range(n_class * n_support), y_hat_support] = 1.
@@ -226,9 +233,9 @@ class ClusterNet(Protonet):
         support_permuted_prediction = cols_support[y_hat_support]
         support_clustering_accuracy = (support_permuted_prediction == target_inds_support.cpu().numpy().flatten()).mean()
 
-        # Now, run standard prototypical networks
-        log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1).view(n_class, n_query, -1)
-        _, y_hat_query = log_p_y_query.max(2)
+        # Now, run standard prototypical networks, but plugging centroids instead of prototypes
+        log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1)
+        _, y_hat_query = log_p_y_query.max(1)
         y_hat_query = y_hat_query.cpu().numpy()
 
         # Permute predictions
