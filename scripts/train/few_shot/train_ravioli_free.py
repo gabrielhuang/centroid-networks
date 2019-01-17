@@ -137,31 +137,25 @@ def main(opt):
         # Sample from training
         with Timer() as train_load_timer:
 
-            sample, new_epoch = train_iter.next()
+            sample_train, new_epoch = train_iter.next()
 
         # Compute loss; backprop
         with Timer() as train_backprop_timer:
 
+            # z = h(x)
+            embedding_train = model.embed(sample_train, raw_input=opt['rawinput'])
 
-            # TODO: integreate regularization/temperature in non-sinkhorn mode as well
-            loss, train_info = model.loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
-            eval_loss, train_eval_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
+            # Supervised and Clustering Losses
+            supervised_loss, train_supervised_info = model.supervised_loss(embedding_train, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
+            __, train_clustering_info = model.clustering_loss(embedding_train, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
 
-            if opt['mode'] == 'mix':
-                total_loss = loss + eval_loss
-            elif opt['mode'] == 'supervised':
-                total_loss = loss
-            elif opt['mode'] == 'mixwait':
-                if iteration < 500:
-                    total_loss = loss
-                else:
-                    total_loss = loss + eval_loss
+            total_loss = supervised_loss
 
             if opt['centroid_loss'] > 0. :
-                centroid_loss = opt['centroid_loss'] * train_info['z_proto_var']
+                centroid_loss = opt['centroid_loss'] * train_supervised_info['ClassVariance']
                 total_loss = total_loss + centroid_loss
                 summary.log(iteration, 'train/CentroidLoss', centroid_loss.item())  # Supervised accuracy
-            summary.log(iteration, 'train/CentroidLossUnscaled', train_info['z_proto_var'].item())  # Supervised accuracy
+            summary.log(iteration, 'train/CentroidLossUnscaled', train_supervised_info['ClassVariance'].item())  # Supervised accuracy
 
             if not opt['rawinput']:
                 # No need to backprop in rawinput mode
@@ -169,41 +163,43 @@ def main(opt):
                 total_loss.backward()
                 optimizer.step()
 
-        summary.log(iteration, 'train/SupervisedAcc', train_info['acc'])  # Supervised accuracy
-        summary.log(iteration, 'train/SupervisedLoss', train_info['loss'])  # Supervised cross-entropy
-        summary.log(iteration, 'train/ClusteringAcc', train_eval_info['ClusteringAcc'])  # Clustering Accuracy with cross-entropy assignment
-        summary.log(iteration, 'train/_ClusteringAccCE', train_eval_info['_ClusteringAccCE'])  # Clustering Accuracy with cross-entropy assignment
-        summary.log(iteration, 'train/ClusteringLoss', train_eval_info['loss'])  # Permuted cross-entropy
-        summary.log(iteration, 'train/load_time', train_load_timer.interval)
-        summary.log(iteration, 'train/bp_time', train_backprop_timer.interval)
+        summary.log(iteration, 'train/SupervisedAcc', train_supervised_info['SupervisedAccuracy'])
+        summary.log(iteration, 'train/SupervisedLoss', train_supervised_info['SupervisedLoss'])
+        summary.log(iteration, 'train/SupportClusteringAcc', train_clustering_info['SupportClusteringAcc'])
+        summary.log(iteration, 'train/QueryClusteringAcc', train_clustering_info['QueryClusteringAcc'])
+        summary.log(iteration, 'train/_TimeLoad', train_load_timer.interval)
+        summary.log(iteration, 'train/_TimeBackprop', train_backprop_timer.interval)
         summary.log(iteration, 'train/TotalLoss', total_loss.item())  # Supervised accuracy
 
         # Sample from validation
         if iteration % 10 == 0 and val_iter is not None:
             with Timer() as val_load_timer:
 
-                sample, __ = val_iter.next()
+                sample_val, __ = val_iter.next()
 
             with Timer() as val_eval_timer:
 
-                _, val_info = model.eval_loss(sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
+                # z = h(x)
+                embedding_val = model.embed(sample_val, raw_input=opt['rawinput'])
 
-            other_sample, __ = other_train_iter.next()
-            _, val_train_info = model.eval_loss(other_sample, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'], raw_input=opt['rawinput'])
+                __, val_supervised_info = model.supervised_loss(embedding_val, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
+                __, val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
 
-            print 'Immediate', val_info['ClusteringAcc']
+            print 'Immediate', val_clustering_info['ClusteringAcc']
 
-            summary.log(iteration, 'val/ClusteringAcc', val_info['ClusteringAcc'])  # Clustering Accuracy with cross-entropy assignment
-            summary.log(iteration, 'val/_ClusteringAccCE', val_info['_ClusteringAccCE'])  # Clustering Accuracy with cross-entropy assignment
-            summary.log(iteration, 'val/ClusteringLoss', val_info['loss'])  # Permuted cross-entropy
-            summary.log(iteration, 'val/TrainClusteringAcc', val_train_info['ClusteringAcc'])  # Same things on meta-training set (sanity check)
-            summary.log(iteration, 'val/TrainClusteringLoss', val_train_info['loss'])  #
-            summary.log(iteration, 'val/load_time', val_load_timer.interval)
-            summary.log(iteration, 'val/eval_time', val_eval_timer.interval)
+            summary.log(iteration, 'val/SupervisedAcc', val_supervised_info['SupervisedAccuracy'])
+            summary.log(iteration, 'val/SupervisedLoss', val_supervised_info['SupervisedLoss'])
+            summary.log(iteration, 'val/SupportClusteringAcc', val_clustering_info['SupportClusteringAcc'])
+            summary.log(iteration, 'val/QueryClusteringAcc', val_clustering_info['QueryClusteringAcc'])
+            summary.log(iteration, 'val/_TimeLoad', val_load_timer.interval)
+            summary.log(iteration, 'val/_TimeEval', val_eval_timer.interval)
 
         # End of epoch? -> schedule new learning rate
         if new_epoch and iteration>0:
+            print 'End of epoch, scheduling new learning rate'
             scheduler.step()
+
+            summary.log(iteration, 'other/_LR', scheduler.get_lr())
 
         # Save model
         if iteration>0 and new_epoch:
@@ -223,7 +219,7 @@ def main(opt):
             summary.print_summary()
 
         #### Save log
-        if iteration % 100 == 0 or iteration < 10:
+        if iteration % 500 == 0 or iteration < 10:
             try:
                 with open(os.path.join(opt['log.exp_dir'], 'log.json'), 'wb') as fp:
                     json.dump(summary.logs, fp)

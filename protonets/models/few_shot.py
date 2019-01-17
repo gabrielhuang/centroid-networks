@@ -23,20 +23,28 @@ class Protonet(nn.Module):
 
         self.encoder = encoder
 
-    def loss(self, sample, regularization, supervised_sinkhorn_loss, raw_input):
-        xs = Variable(sample['xs']) # support
-        xq = Variable(sample['xq']) # query
+    def embed(self, sample, raw_input=False):
+        '''
+        Compute embeddings of sample z = h(x)
+
+        :param sample: dictionary
+            sample['xs'] of size (n_class,  n_support,     channel, height, width),
+            sample['xq'] of size (n_class,  n_query,       channel, height, width)
+        :param raw_input: if True, then do nothing, simple flatten x
+        :return: dictionary
+            sample['zs'] of size (n_class,  n_support,  latent_dims),
+            sample['zq'] of size (n_class,  n_query,  latent_dims),
+        '''
+
+        # Cuda ?
+
+        xs = sample['xs'] # support
+        xq = sample['xq'] # query
 
         n_class = xs.size(0)
         assert xq.size(0) == n_class
         n_support = xs.size(1)
         n_query = xq.size(1)
-
-        target_inds = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long()
-        target_inds = Variable(target_inds, requires_grad=False)
-
-        if xq.is_cuda:
-            target_inds = target_inds.cuda()
 
         x = torch.cat([xs.view(n_class * n_support, *xs.size()[2:]),
                        xq.view(n_class * n_query, *xq.size()[2:])], 0)
@@ -46,40 +54,69 @@ class Protonet(nn.Module):
             z = x.view(len(x), -1)
         else:
             z = self.encoder.forward(x)
-        z_dim = z.size(-1)
 
-        z_proto = z[:n_class*n_support].view(n_class, n_support, z_dim).mean(1)
-        z_proto_var = ((z_proto - z[:n_class*n_support].view(n_class, n_support, z_dim).mean(1)[:, None, :])**2).mean()
-        zq = z[n_class*n_support:]
+        zs = z[:n_class * n_support].view(n_class, n_support, -1)
+        zq = z[n_class * n_support:].view(n_class, n_query, -1)
 
-        dists = euclidean_dist(zq, z_proto)
+        embedded_sample = {
+            'zs': zs,
+            'zq': zq,
+            'class': sample['class']
+        }
 
+        return embedded_sample
+
+
+    def supervised_loss(self, embedded_sample, regularization, supervised_sinkhorn_loss):
+
+        # Prepare data
+        z_support = embedded_sample['zs'] # support
+        z_query = embedded_sample['zq'] # query
+
+        n_class = z_support.size(0)
+        assert z_query.size(0) == n_class, 'need same number of classes'
+        n_support = z_support.size(1)
+        n_query = z_query.size(1)
+        z_dim = z_support.size(-1)
+
+        target_inds_support = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
+        target_inds_query = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
+
+        # Compute prototypes
+        z_proto = z_support.view(n_class, n_support, z_dim).mean(1)
+        # THis was clearly wrong!
+        #class_variance = ((z_proto - z_support.view(n_class, n_support, z_dim).mean(1)[:, None, :])**2).mean()
+
+        # Compute query-prototype distances
+        query_dists = euclidean_dist(z_query, z_proto)
+
+        # Assign query points to prototypes
         if not supervised_sinkhorn_loss:
             # Default protonet. Assignment is softmax on squared cluster-sample distance
             # divide/multiply by correct temperature/regularization
-            log_p_y = F.log_softmax(-dists*regularization, dim=1).view(n_class, n_query, -1)
+            log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1).view(n_class, n_query, -1)
         else:
             # This part changes
             # Assignment is now regularized, optimal transport, but transportation cost is given by distance matrix.
             # this differs from previously because the regularization is slightly different
             # todo: grid search on iterations
             __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
-                dists, regularization=regularization, iterations=10)
-            log_p_y = log_assignment.view(n_class, n_query, -1)
+                query_dists, regularization=regularization, iterations=10)
+            log_p_y_query = log_assignment.view(n_class, n_query, -1)
 
-        loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
+        # Supervised Loss (Query/Validation)
+        supervised_loss = -log_p_y_query.gather(2, target_inds_query).squeeze().view(-1).mean()
 
-        _, y_hat = log_p_y.max(2)
-        acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
+        # Supervised Accuracy and Predictions
+        _, y_hat_query = log_p_y_query.max(2)
+        supervised_accuracy = torch.eq(y_hat_query, target_inds_query.squeeze()).float().mean()
 
-        return loss_val, {
-            'loss': loss_val.item(),
-            'acc': acc_val.item(),
-            'z_proto_var': z_proto_var
+        return supervised_loss, {
+            'SupervisedLoss': supervised_loss.item(),
+            'SupervisedAcc': supervised_accuracy.item(),
+            'ClassVariance': class_variance
         }
 
-    def eval_loss(self, sample):
-        return self.loss(sample)
 
 
 @register_model('protonet_conv')
@@ -111,69 +148,109 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def eval_loss(self, sample, regularization, supervised_sinkhorn_loss, raw_input, learning_to_cluster=None):
-        xs = Variable(sample['xs'])  # support
-        xq = Variable(sample['xq'])  # query
+    def clustering_loss(self, embedded_sample, regularization, supervised_sinkhorn_loss):
+        '''
+        This function returns results for two settings (simultaneously):
+        - Learning to Cluster:
+            - cluster support set.
+            - p(y=cluster k | x) given either by Sinkhorn or Softmax
+            - reveal support set labels (for evaluation)
+            - find optimal matching between predicted clusters and support set labels
+            -> Score is clustering accuracy on support set
+        - Unsupervised Few-Shot Learning: cluster support set
+            - cluster support set, get centroids.
+            - p(y=cluster k | x) given either by Sinkhorn or Softmax
+            - reveal support set labels (for evaluation)
+            - permute clusters accordingly
+            - now classify query set data using centroids as prototypes.
+            -> Score is supervised accuracy of query set.
 
-        n_class = xs.size(0)
-        assert xq.size(0) == n_class
-        n_support = xs.size(1)
-        n_query = xq.size(1)
+        :param embedded_sample:
+        :param regularization:
+        :param supervised_sinkhorn_loss:
+        :param raw_input:
+        :return:
+        '''
 
-        target_inds = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long()
-        target_inds = Variable(target_inds, requires_grad=False)
+        # Prepare data
+        z_support = embedded_sample['zs'] # support
+        z_query = embedded_sample['zq'] # query
 
-        if xq.is_cuda:
-            target_inds = target_inds.cuda()
+        n_class = z_support.size(0)
+        assert z_query.size(0) == n_class, 'need same number of classes'
+        n_support = z_support.size(1)
+        n_query = z_query.size(1)
+        z_dim = z_support.size(-1)
 
-        x = torch.cat([xs.view(n_class * n_support, *xs.size()[2:]),
-                       xq.view(n_class * n_query, *xq.size()[2:])], 0)
+        target_inds_support = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
+        target_inds_query = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
 
-        if raw_input:
-            # No embedding, z = x
-            z = x.view(len(x), -1)
-        else:
-            z = self.encoder.forward(x)
-        z_dim = z.size(-1)
+        # Build support set targets
+        target_inds_dummy_support = np.zeros((n_class*n_query, n_class))
+        target_inds_dummy_support[range(n_class*n_query), target_inds_support.cpu().numpy().flatten()] = 1. # transform targets to one-hot
+        target_inds_dummy_support = torch.FloatTensor(target_inds_dummy_support).to(xs.device)
 
-        #z_proto = z[:n_class * n_support].view(n_class, n_support, z_dim).mean(1)
-
-        zs = z[:n_class * n_support]
-        zq = z[n_class * n_support:]
-
-        # Cluster support set into clusters
-        z_proto, data_centroid_assignment = wasserstein.cluster_wasserstein(zs, n_class, stop_gradient=False, regularization=regularization)
-
-        # So it turns out the wasserstein assignments are not the same as the log_p_y assignments
-        # one relies on optimal transport while the other relies on sample-centroid distances ...
-
-        if setting == 'learning_to_cluster':
-            pass
-            # TODO: finisnh that
+        # Cluster support set into clusters (both for learning to cluster and unsupervised few shot learning)
+        z_centroid, data_centroid_assignment = wasserstein.cluster_wasserstein(z_support, n_class, stop_gradient=False, regularization=regularization)
 
         # Pairwise distance from query set to centroids
-        dists = euclidean_dist(zq, z_proto)
+        support_dists = euclidean_dist(z_support, z_centroid)
+        query_dists = euclidean_dist(z_query, z_centroid)
 
+        # Assign support set points to centroids (using either Sinkhorn or Softmax)
         if supervised_sinkhorn_loss:
+
             # Optimal assignment (could have kept previous result probably)
             __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
-                dists, regularization=regularization, iterations=10)
-            log_p_y = log_assignment.view(n_class, n_query, -1)
-        else:
-            # Classic softmax
+                support_dists, regularization=regularization, iterations=10)
+            # Predictions are already the optimal assignment
+            log_p_y_support = log_assignment.view(n_class, n_query, -1)
+
+        else: # Classic softmax
 
             # Unpermuted Log Probabilities
-            log_p_y = F.log_softmax(-dists*regularization, dim=1).view(n_class, n_query, -1)
+            log_p_y_support = F.log_softmax(-support_dists*regularization, dim=1).view(n_class, n_query, -1)
 
+        # Build accuracy permutation matrix (to match support with ground truth)
+        __, y_hat_support = log_p_y_support.view(n_class * n_support, n_class).max(1)
+        y_hat_support = y_hat_support.cpu().numpy()  # to numpy, no need to backprop anyways
+        one_hot_prediction = torch.zeros((n_class * n_support, n_class)).to(z_support.device)
+        one_hot_prediction[range(n_class * n_support), y_hat_support] = 1.
+        accuracy_permutation_cost_support = -one_hot_prediction.view(n_class, n_support, n_class, 1) * target_inds_dummy_support.view(
+            n_class, n_support, 1, n_class)
+        accuracy_permutation_cost_support = accuracy_permutation_cost_support.sum(1).sum(0)
 
+        # Use Hungarian algorithm to find best match
+        __, __, cols_support = wasserstein.compute_hungarian(accuracy_permutation_cost_support)
+        support_permuted_prediction = cols_support[y_hat_support]
+        support_clustering_accuracy = (support_permuted_prediction == target_inds_support.cpu().numpy().flatten()).mean()
 
-        target_inds_dummy = np.zeros((n_class*n_query, n_class))
-        target_inds_dummy[range(n_class*n_query), target_inds.cpu().numpy().flatten()] = 1. # transform targets to one-hot
-        target_inds_dummy = torch.FloatTensor(target_inds_dummy).to(xs.device)
+        # Now, run standard prototypical networks
+        log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1).view(n_class, n_query, -1)
+        _, y_hat_query = log_p_y_query.max(2)
+        y_hat_query = y_hat_query.cpu().numpy()
 
-        # Build permutation cost matrix
-        permutation_cost = -log_p_y.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
-        permutation_cost = permutation_cost.sum(1).sum(0)
+        # Permute predictions
+        query_permuted_predictions = cols_support[y_hat_query]
+        query_clustering_accuracy = (query_permuted_predictions == target_inds_query.cpu().numpy().flatten()).mean()
+
+        # This was only useful when backpropping end-to-end.
+        # # Build permutation cost matrix
+        # permutation_cost = -log_p_y.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
+        # permutation_cost = permutation_cost.sum(1).sum(0)
+        #
+        # # Permuted log probabilities
+        # loss_val_unnormalized, assignment, __, __, __ = wasserstein.compute_sinkhorn_stable(
+        #     permutation_cost, regularization=100., iterations=10)
+        #
+        # loss_val = loss_val_unnormalized / n_query  # normalize so it looks like a normal cross entropy
+        #
+        # log_p_y_permuted = n_class * torch.matmul(log_p_y, assignment)
+        #
+        # # _, y_hat = log_p_y.max(2)
+        # __, y_hat = log_p_y_permuted.max(2)
+        #
+        # acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
 
         # Compute best label assignment and corresponding loss
         # assignment[a,b] = 1_{a=\sigma(b)}
@@ -181,46 +258,9 @@ class ClusterNet(Protonet):
         # might not backprop through the graph though ...
         # it might or might not be equivalent due to the contraints (is it a critical point?)
 
-        #loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
-
-        #log_p_y_permuted[n, k, a] = n_class * \sum_b log_p_y[n, k, b] * assignment[a,b]
-
-        # Permuted log probabilities
-        loss_val_unnormalized, assignment, __, __, __ = wasserstein.compute_sinkhorn_stable(
-            permutation_cost, regularization=100., iterations=10)
-
-        loss_val = loss_val_unnormalized / n_query  # normalize so it looks like a normal cross entropy
-
-        log_p_y_permuted = n_class * torch.matmul(log_p_y, assignment)
-
-        #_, y_hat = log_p_y.max(2)
-        __, y_hat = log_p_y_permuted.max(2)
-
-        acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
-
-        # HUNGARIAN ALGORITHM
-        # compute the same with hungarian
-        #hungarian_loss, hungarian_assignment = wasserstein.compute_hungarian(permutation_cost)
-        #print 'Hungarian', hungarian_loss
-        #print 'Sinkhorn', loss_val
-
-        __, argmax = log_p_y.view(n_class*n_query, n_class).max(1)
-        argmax = argmax.cpu()  # no need to backprop anyways
-        one_hot_prediction = torch.zeros((n_class*n_query, n_class)).to(xs.device)
-        one_hot_prediction[range(n_class*n_query), argmax] = 1.
-        accuracy_permutation_cost = -one_hot_prediction.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
-        accuracy_permutation_cost = accuracy_permutation_cost.sum(1).sum(0)
-
-        __, __, cols = wasserstein.compute_hungarian(accuracy_permutation_cost)
-        permuted_prediction = cols[argmax]
-        clustering_accuracy = (permuted_prediction == target_inds.cpu().numpy().flatten()).mean()
-
-        #print 'Clustering Accuracy', clustering_accuracy
-
-        return loss_val, {
-            'loss': loss_val.item(),
-            '_ClusteringAccCE': acc_val.item(),
-            'ClusteringAcc': clustering_accuracy
+        return None, {
+            'SupportClusteringAcc': support_clustering_accuracy,
+            'QueryClusteringAcc': query_clustering_accuracy
         }
 
 
