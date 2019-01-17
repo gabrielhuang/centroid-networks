@@ -7,8 +7,9 @@ parser = argparse.ArgumentParser(description='Train prototypical networks')
 
 # data args
 default_dataset = 'omniglot'
-parser.add_argument('--data.dataset', type=str, default=default_dataset, metavar='DS',
-                    help="data set name (default: {:s})".format(default_dataset))
+parser.add_argument('--data.dataset', type=str, default=default_dataset, choices=['omniglot','miniimagenet'],
+                    metavar='DS', help="data set name (default: {:s})".format(default_dataset))
+parser.add_argument('--data.root', default='', help='path to dataset')
 default_split = 'vinyals'
 parser.add_argument('--data.split', type=str, default=default_split, metavar='SP',
                     help="split name (default: {:s})".format(default_split))
