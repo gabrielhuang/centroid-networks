@@ -22,7 +22,7 @@ parser.add_argument('--data.test_way', type=int, default=5, metavar='TESTWAY',
                     help="number of classes per episode in test. 0 means same as data.way (default: 5)")
 parser.add_argument('--data.test_shot', type=int, default=0, metavar='TESTSHOT',
                     help="number of support examples per class in test. 0 means same as data.shot (default: 0)")
-parser.add_argument('--data.test_query', type=int, default=5, metavar='TESTQUERY',
+parser.add_argument('--data.test_query', type=int, default=15, metavar='TESTQUERY',
                     help="number of query examples per class in test. 0 means same as data.query (default: 15)")
 parser.add_argument('--data.train_episodes', type=int, default=100, metavar='NTRAIN',
                     help="number of train episodes per epoch (default: 100)")
@@ -72,12 +72,10 @@ parser.add_argument('--ravioli', type=int, default=0, help='1: use original code
 # Unsupervised Few-shot learning specific parameters
 parser.add_argument('--iterations', default=100000, type=int, help='number of iterations (i.e. episodes)')
 parser.add_argument('--checkpoint', default='', help='load model checkpoint')
-parser.add_argument('--mode', default='mix', choices=['mix', 'supervised', 'mixwait'], help='which mode to use')
 parser.add_argument('--centroid-loss', default=0., type=float, help='centroid loss penalty')
 parser.add_argument('--supervisedsinkhorn', required=True, type=int, help='supervised sinkhorn or softmax matching')
 parser.add_argument('--temperature', default=1., type=float, help='temperature for softmax and assignments')
 parser.add_argument('--rawinput', default=0, type=int, help='use raw inputs or train features (model weights are ignored)')
-parser.add_argument('--setting', default='666', choices=[''], help='use raw inputs or train features (model weights are ignored)')
 # always the same for meta-train and meta-validation unless otherwise specified
 
 args = vars(parser.parse_args())
