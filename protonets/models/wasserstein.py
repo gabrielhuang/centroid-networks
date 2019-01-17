@@ -149,7 +149,7 @@ def cluster_wasserstein(X, n_components, regularization=100., iterations=20, sto
 
 def compute_hungarian(m):
     assert m.size()[0] == m.size()[1]
-    m_numpy = m.detach().numpy()
+    m_numpy = m.cpu().detach().numpy()
     row, col = hungarian(m_numpy)
     matrix = np.zeros(m.size())
     matrix[row, col] = 1. / float(len(m))

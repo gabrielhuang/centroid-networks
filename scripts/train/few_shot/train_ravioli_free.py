@@ -11,6 +11,9 @@ import torch.optim.lr_scheduler as lr_scheduler
 import torchvision
 import torchnet as tnt
 
+import sys
+sys.path.append('../../../')
+
 from protonets.engine import Engine
 
 import protonets.utils.data as data_utils
