@@ -72,8 +72,8 @@ def data_adapter(iterator, opt, train):
                 n_query = opt['data.query']
             else:
                 n_way = opt['data.test_way']
-                n_shot = opt['data.test_shot']
-                n_query = opt['data.test_query']
+                n_shot = opt['data.test_shot'] or opt['data.shot']
+                n_query = opt['data.test_query'] or opt['data.query']
 
             # TODO: check this is fine
             xs = x[:n_way*n_shot].view(n_way, n_shot, *x.size()[1:])

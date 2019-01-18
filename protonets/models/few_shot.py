@@ -193,8 +193,8 @@ class ClusterNet(Protonet):
         target_inds_query = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
 
         # Build support set targets
-        target_inds_dummy_support = np.zeros((n_class*n_query, n_class))
-        target_inds_dummy_support[range(n_class*n_query), target_inds_support.cpu().numpy().flatten()] = 1. # transform targets to one-hot
+        target_inds_dummy_support = np.zeros((n_class*n_support, n_class))
+        target_inds_dummy_support[range(n_class*n_support), target_inds_support.cpu().numpy().flatten()] = 1. # transform targets to one-hot
         target_inds_dummy_support = torch.FloatTensor(target_inds_dummy_support).to(z_query.device)
 
         # Cluster support set into clusters (both for learning to cluster and unsupervised few shot learning)
