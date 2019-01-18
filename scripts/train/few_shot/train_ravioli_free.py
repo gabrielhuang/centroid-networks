@@ -56,6 +56,39 @@ class Timer:
         self.end = time.clock()
         self.interval = self.end - self.start
 
+
+def data_adapter(iterator, opt, train):
+    '''
+    Adapter for miniimagenet loader (taken from other code)
+    '''
+    assert opt['data.way'] == opt['data.test_way']
+    for sample in iterator:
+        if opt['data.dataset'] == 'miniimagenet':
+            x, y = sample
+
+            if train:
+                n_way = opt['data.way']
+                n_shot = opt['data.shot']
+                n_query = opt['data.query']
+            else:
+                n_way = opt['data.test_way']
+                n_shot = opt['data.test_shot']
+                n_query = opt['data.test_query']
+
+            # TODO: check this is fine
+            xs = x[:n_way*n_shot].view(n_way, n_shot, *x.size()[1:])
+            xq = x[:n_way*n_query].view(n_way, n_query, *x.size()[1:])
+
+            yield {
+                'xs': xs,
+                'xq': xq,
+                'class': 'No class for now'
+            }
+        elif opt['data.dataset'] == 'omniglot':
+            yield sample
+        else:
+            raise Exception('Unregistered dataset')
+
 def make_infinite(iterator):
     while True:
         new_epoch = True
@@ -77,6 +110,13 @@ def main(opt):
         f.write('\n')
 
     trace_file = os.path.join(opt['log.exp_dir'], 'trace.txt')
+
+    # Adapt model size to dataset
+    if opt['data.dataset'] == 'omniglot':
+        opt['model.x_dim'] = '1,28,28'
+    elif opt['data.dataset'] == 'miniimagenet':
+        opt['model.x_dim'] = '3,84,84'
+
 
     # Postprocess arguments
     opt['model.x_dim'] = list(map(int, opt['model.x_dim'].split(',')))
@@ -103,13 +143,13 @@ def main(opt):
         val_loader = data['val']
 
         # Prepare datasets
-        train_iter = make_infinite(train_loader)
-        other_train_iter = make_infinite(train_loader)  # for evaluating other losses
-        val_iter = make_infinite(val_loader)
+        train_iter = make_infinite(data_adapter(train_loader, opt, train=True))
+        val_iter = make_infinite(data_adapter(val_loader, opt, train=False))
 
     ###########################################
     # Create model and optimizer
     ###########################################
+
     model = model_utils.load(opt)
 
     if opt['checkpoint']:
