@@ -62,9 +62,9 @@ def data_adapter(iterator, opt, train):
     Adapter for miniimagenet loader (taken from other code)
     '''
     assert opt['data.way'] == opt['data.test_way']
-    for sample in iterator:
+    for (sample, new_epoch) in iterator:
         if opt['data.dataset'] == 'miniimagenet':
-            x, y = sample
+            (x, y) = sample
 
             if train:
                 n_way = opt['data.way']
@@ -77,15 +77,15 @@ def data_adapter(iterator, opt, train):
 
             # TODO: check this is fine
             xs = x[:n_way*n_shot].view(n_way, n_shot, *x.size()[1:])
-            xq = x[:n_way*n_query].view(n_way, n_query, *x.size()[1:])
+            xq = x[n_way*n_shot:].view(n_way, n_query, *x.size()[1:])
 
             yield {
                 'xs': xs,
                 'xq': xq,
                 'class': 'No class for now'
-            }
+            }, new_epoch
         elif opt['data.dataset'] == 'omniglot':
-            yield sample
+            yield sample, new_epoch
         else:
             raise Exception('Unregistered dataset')
 
@@ -135,7 +135,7 @@ def main(opt):
         val_loader = None
 
         # Prepare datasets
-        train_iter = make_infinite(train_loader)
+        train_iter = data_adapter(make_infinite(train_loader), opt, train=True)
         val_iter = None
     else:
         data = data_utils.load(opt, ['train', 'val'])
@@ -143,8 +143,8 @@ def main(opt):
         val_loader = data['val']
 
         # Prepare datasets
-        train_iter = make_infinite(data_adapter(train_loader, opt, train=True))
-        val_iter = make_infinite(data_adapter(val_loader, opt, train=False))
+        train_iter = data_adapter(make_infinite(train_loader), opt, train=True)
+        val_iter = data_adapter(make_infinite(val_loader), opt, train=False)
 
     ###########################################
     # Create model and optimizer
@@ -158,7 +158,7 @@ def main(opt):
 
     if opt['checkpoint_state']:
         print 'Loading state from checkpoint', opt['checkpoint_state']
-        model.load_state_dict(torch.load(opt['checkpoint_state']))
+        model.load_state_dict(torch.load(opt['checkpoint_state'], map_location=lambda storage, loc: storage))
 
     if opt['data.cuda']:
         model.cuda()
