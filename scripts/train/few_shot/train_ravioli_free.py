@@ -156,6 +156,10 @@ def main(opt):
         print 'Loading from checkpoint', opt['checkpoint']
         model = torch.load(opt['checkpoint'])
 
+    if opt['checkpoint_state']:
+        print 'Loading state from checkpoint', opt['checkpoint_state']
+        model.load_state_dict(torch.load(opt['checkpoint_state']))
+
     if opt['data.cuda']:
         model.cuda()
 

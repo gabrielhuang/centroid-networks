@@ -1,15 +1,30 @@
 import os
 import numpy as np
 import json
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import scipy.ndimage.filters
+import string
+valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+
+import argparse
+
+parser = argparse.ArgumentParser('')
+parser.add_argument('--folder', default='../train/few_shot/', help='folder with all the runs')
+parser.add_argument('--fraction', default=0.2, type=float, help='size of tail to use')
+parser.add_argument('--skipfraction', default=0, type=float, help='fraction to skip in the end')
+parser.add_argument('--filter', default='', help='filter runs by filename')
+
+args = parser.parse_args()
 
 filter = '20way'
 
 #folder = '../../results_cluster'
-folder = '../train/few_shot/'
+folder = args.folder
 #folder = '../train/few_shot/good/'
-fraction = 0.2
+fraction = args.fraction
+skipfraction = args.skipfraction
 
 files = 0
 
@@ -28,7 +43,7 @@ for f in os.listdir(folder):
 
 # Useful keys
 #useful_keys = ['val/acc']
-useful_keys = ['val/ClusteringAcc', 'train/ClusteringAcc', 'train/SupervisedAcc', 'train/CentroidLossUnscaled']
+useful_keys = ['val/QueryClusteringAcc', 'val/SupportClusteringAcc', 'train/SupervisedAcc', 'val/SupervisedAcc']
 
 #print stats
 print 'Total of {} runs'.format(len(stats))
@@ -43,14 +58,22 @@ for key in useful_keys:
         plt.plot(x, smoothed_y, label=f)
 
         print '\n{}  [{}]'.format(f, key)
-        subset_y = y[-int(len(y)*fraction):]
-        subset_x = x[-int(len(y)*fraction):]
+        if skipfraction > 0 and skipfraction < fraction:
+            subset_y = y[-int(len(y)*fraction):-int(len(y)*(fraction-skipfraction))]
+            subset_x = x[-int(len(y)*fraction):-int(len(y)*(fraction-skipfraction))]
+        else:
+            subset_y = y[-int(len(y)*fraction):]
+            subset_x = x[-int(len(y)*fraction):]
         print '\tAverage over last {} samples:'.format(len(subset_y))
         print '\titerations {} -> {}'.format(subset_x[0], subset_x[-1])
         print '\t{:.4f} +/- {:.4f} (std = {:.4f})'.format(np.mean(subset_y), np.std(subset_y)/float(np.sqrt(len(subset_y))), np.std(subset_y))
     plt.legend()
     plt.title(key)
 
+    valid_key = ''.join(c for c in key if c in valid_chars)
+    plt.savefig('plot_{}.png'.format(valid_key))
+
 
 
 plt.show()
+

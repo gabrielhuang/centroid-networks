@@ -73,6 +73,7 @@ parser.add_argument('--ravioli', type=int, default=0, help='1: use original code
 # Unsupervised Few-shot learning specific parameters
 parser.add_argument('--iterations', default=100000, type=int, help='number of iterations (i.e. episodes)')
 parser.add_argument('--checkpoint', default='', help='load model checkpoint')
+parser.add_argument('--checkpoint-state', default='', help='load model state checkpoint')
 parser.add_argument('--centroid-loss', default=0., type=float, help='centroid loss penalty')
 parser.add_argument('--supervisedsinkhorn', required=True, type=int, help='supervised sinkhorn or softmax matching')
 parser.add_argument('--temperature', default=1., type=float, help='temperature for softmax and assignments')
