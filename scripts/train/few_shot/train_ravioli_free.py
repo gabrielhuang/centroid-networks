@@ -79,6 +79,10 @@ def data_adapter(iterator, opt, train):
             xs = x[:n_way*n_shot].view(n_way, n_shot, *x.size()[1:])
             xq = x[n_way*n_shot:].view(n_way, n_query, *x.size()[1:])
 
+            if opt['data.cuda']:
+                xs = xs.cuda()
+                xq = xq.cuda()
+
             yield {
                 'xs': xs,
                 'xq': xq,

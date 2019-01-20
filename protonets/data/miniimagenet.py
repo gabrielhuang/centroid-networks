@@ -13,9 +13,17 @@ from torch.utils.data import DataLoader
 from protonets.data.base import CudaTransform
 
 
+class SimpleCudaTransform(object):
+    def __call__(self, data):
+        data = data.cuda()
+        return data
+
+
 class MiniImageNet(Dataset):
 
     def __init__(self, ROOT_PATH, setname, cuda=False):
+        self.cuda = cuda
+
         csv_path = osp.join(ROOT_PATH, setname + '.csv')
         lines = [x.strip() for x in open(csv_path, 'r').readlines()][1:]
 
@@ -37,16 +45,19 @@ class MiniImageNet(Dataset):
         self.data = data
         self.label = label
 
-        self.transform = transforms.Compose([
+        t = [
             transforms.Resize(84),
             transforms.CenterCrop(84),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
-        ])
+        ]
 
-        if cuda:
-            self.transform.append(CudaTransform())
+        #if cuda:
+        #    t.append(SimpleCudaTransform())
+
+        self.transform = transforms.Compose(t)
+
 
     def __len__(self):
         return len(self.data)
@@ -128,8 +139,12 @@ def load(opt, splits):
             n_episodes = opt['data.train_episodes']
 
 
+        # Right now CUDA is ignored. It will be used in the data adapter.
+        # This is due to issues with multiprocessing and CUDA driver initialization.
+        # https://github.com/pytorch/pytorch/issues/2517
+
         if split == 'train':
-            trainset = MiniImageNet(opt['data.root'], 'train')
+            trainset = MiniImageNet(opt['data.root'], 'train', cuda=opt['data.cuda'])
             train_sampler = CategoriesSampler(trainset.label, 100,
                                               n_way, n_support+n_query)
             train_loader = DataLoader(dataset=trainset, batch_sampler=train_sampler,
@@ -137,7 +152,7 @@ def load(opt, splits):
 
             ret[split] = train_loader
         elif split == 'val':
-            valset = MiniImageNet(opt['data.root'], 'val')
+            valset = MiniImageNet(opt['data.root'], 'val', cuda=opt['data.cuda'])
             val_sampler = CategoriesSampler(valset.label, 400,
                                             n_way, n_support+n_query)
             val_loader = DataLoader(dataset=valset, batch_sampler=val_sampler,
