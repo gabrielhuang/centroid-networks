@@ -1,9 +1,6 @@
 import os
 import numpy as np
 import json
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import scipy.ndimage.filters
 import string
 valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
@@ -15,10 +12,17 @@ parser.add_argument('--folder', default='../train/few_shot/', help='folder with 
 parser.add_argument('--fraction', default=0.2, type=float, help='size of tail to use')
 parser.add_argument('--skipfraction', default=0, type=float, help='fraction to skip in the end')
 parser.add_argument('--filter', default='', help='filter runs by filename')
+parser.add_argument('--gui', default=True, type=int, help='use GUI')
 
 args = parser.parse_args()
 
-filter = '20way'
+
+import matplotlib
+if not args.gui:
+    matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+filter = args.filter
 
 #folder = '../../results_cluster'
 folder = args.folder
@@ -32,7 +36,7 @@ stats = {}
 
 for f in os.listdir(folder):
     path = os.path.join(folder, f)
-    if os.path.isdir(path) and 'results.' in path and filter in path:
+    if os.path.isdir(path) and filter in path:
         print 'Reading', path
         try:
             with open(os.path.join(path, 'log.json'), 'rb') as fp:
