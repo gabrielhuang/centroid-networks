@@ -196,6 +196,13 @@ def main(opt):
             # z = h(x)
             embedding_train = model.embed(sample_train, raw_input=opt['rawinput'])
 
+            if iteration == 0:
+                print 'Debug: Tensor sizes'
+                print 'xs', sample_train['xs'].size()
+                print 'xq', sample_train['xq'].size()
+                print 'zs', embedding_train['zs'].size()
+                print 'zq', embedding_train['zq'].size()
+
             # Supervised and Clustering Losses
             supervised_loss, train_supervised_info = model.supervised_loss(embedding_train, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
             __, train_clustering_info = model.clustering_loss(embedding_train, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
