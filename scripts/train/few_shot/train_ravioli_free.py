@@ -204,6 +204,7 @@ def main(opt):
                 print 'xq', sample_train['xq'].size()
                 print 'zs', embedding_train['zs'].size()
                 print 'zq', embedding_train['zq'].size()
+                # Should be 64 for omniglot and 1600 for miniimagenet
 
             # Supervised and Clustering Losses
             supervised_loss, train_supervised_info = model.supervised_loss(embedding_train, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
