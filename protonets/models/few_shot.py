@@ -88,8 +88,10 @@ class Protonet(nn.Module):
         # We average variance over all n_class*n_support points, but not over z_dim (not necessarily meaningful for z_dim)
         # TODO: check if that's the best normalization - Now averaging everything except over dimensions
         class_variance = ((z_support - z_proto[:, None, :])**2).mean(1).mean(0).sum()
+        #old_class_variance = ((z_support - z_proto[:, None, :])**2).mean(2).mean(1).sum()
 
-        # Compute query-prototype distances
+        # Compute support query-prototype distances
+        support_dists = euclidean_dist(z_support.view(n_class*n_support, z_dim), z_proto)
         query_dists = euclidean_dist(z_query.view(n_class*n_query, z_dim), z_proto)
 
         # Assign query points to prototypes
@@ -121,11 +123,33 @@ class Protonet(nn.Module):
         _, sinkhorn_y_hat_query = sinkhorn_log_p_y_query.max(2)
         sinkhorn_supervised_accuracy = torch.eq(sinkhorn_y_hat_query, target_inds_query.squeeze()).float().mean()
 
+        ############ Two-step conditionals ##################
+        # this is a potentially good surrogate loss for unsupervisewd few-shot learning setting
+        # Use optimal assignment on support set to recompute new prototypes
+        __, P, log_P, __, __ = wasserstein.compute_sinkhorn_stable(
+            support_dists, regularization=regularization, iterations=10)
+        support_to_prototype_assignments = P / P.sum(0, keepdim=True)
+
+        two_step_prototypes = torch.mm(support_to_prototype_assignments.t(), z_support.view((n_class*n_support, -1)))
+
+        two_step_query_dists = euclidean_dist(z_query.view(n_class * n_query, z_dim), two_step_prototypes)
+
+        two_step_softmax_log_p_y_query = F.log_softmax(-two_step_query_dists*regularization, dim=1).view(n_class, n_query, -1)
+
+        # Supervised Loss (Query/Validation)
+        two_step_softmax_supervised_loss = -two_step_softmax_log_p_y_query.gather(2, target_inds_query).squeeze().view(-1).mean()
+
+        # Supervised Accuracy and Predictions
+        _, two_step_softmax_y_hat_query = two_step_softmax_log_p_y_query.max(2)
+        two_step_softmax_supervised_accuracy = torch.eq(two_step_softmax_y_hat_query, target_inds_query.squeeze()).float().mean()
+
         return {
             'SupervisedAcc_softmax': softmax_supervised_accuracy,
             'SupervisedAcc_sinkhorn': sinkhorn_supervised_accuracy,
+            'SupervisedAcc_twostep': two_step_softmax_supervised_accuracy,
             'SupervisedLoss_softmax': softmax_supervised_loss,
             'SupervisedLoss_sinkhorn': sinkhorn_supervised_loss,
+            'SupervisedLoss_twostep': two_step_softmax_supervised_loss,
             'ClassVariance': class_variance
         }
 

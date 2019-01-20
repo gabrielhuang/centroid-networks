@@ -214,6 +214,8 @@ def main(opt):
                 total_loss = train_supervised_info['SupervisedLoss_softmax']
             elif opt['train_loss'] == 'sinkhorn':
                 total_loss = train_supervised_info['SupervisedLoss_sinkhorn']
+            elif opt['train_loss'] == 'twostep':
+                total_loss = train_supervised_info['SupervisedLoss_twostep']
             elif opt['train_loss'] == 'evalonly':
                 total_loss = torch.zeros([])
             else:
@@ -234,8 +236,10 @@ def main(opt):
         # supervised losses
         summary.log(iteration, 'train/SupervisedAcc_softmax', train_supervised_info['SupervisedAcc_softmax'].item())
         summary.log(iteration, 'train/SupervisedAcc_sinkhorn', train_supervised_info['SupervisedAcc_sinkhorn'].item())
+        summary.log(iteration, 'train/SupervisedAcc_twostep', train_supervised_info['SupervisedAcc_twostep'].item())
         summary.log(iteration, 'train/SupervisedLoss_softmax', train_supervised_info['SupervisedLoss_softmax'].item())
         summary.log(iteration, 'train/SupervisedLoss_sinkhorn', train_supervised_info['SupervisedLoss_sinkhorn'].item())
+        summary.log(iteration, 'train/SupervisedLoss_twostep', train_supervised_info['SupervisedLoss_twostep'].item())
 
         # unsupervised losses
         summary.log(iteration, 'train/SupportClusteringAcc_softmax', train_clustering_info['SupportClusteringAcc_softmax'])
@@ -269,8 +273,10 @@ def main(opt):
             # supervised losses
             summary.log(iteration, 'val/SupervisedAcc_softmax', val_supervised_info['SupervisedAcc_softmax'].item())
             summary.log(iteration, 'val/SupervisedAcc_sinkhorn', val_supervised_info['SupervisedAcc_sinkhorn'].item())
+            summary.log(iteration, 'val/SupervisedAcc_twostep', val_supervised_info['SupervisedAcc_twostep'].item())
             summary.log(iteration, 'val/SupervisedLoss_softmax', val_supervised_info['SupervisedLoss_softmax'].item())
             summary.log(iteration, 'val/SupervisedLoss_sinkhorn', val_supervised_info['SupervisedLoss_sinkhorn'].item())
+            summary.log(iteration, 'val/SupervisedLoss_twostep', val_supervised_info['SupervisedLoss_twostep'].item())
 
             # unsupervised losses
             summary.log(iteration, 'val/SupportClusteringAcc_softmax', val_clustering_info['SupportClusteringAcc_softmax'])
