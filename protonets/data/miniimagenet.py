@@ -93,7 +93,9 @@ class CategoriesSampler(object):
                 l = self.m_ind[c]
                 pos = torch.randperm(len(l))[:self.n_per]
                 batch.append(l[pos])
-            batch = torch.stack(batch).t().reshape(-1)
+            #batch = torch.stack(batch).t().reshape(-1)
+            # Removed the transpose to get (n_way, n_shot+query) convention
+            batch = torch.stack(batch).reshape(-1)
             yield batch
 
 
