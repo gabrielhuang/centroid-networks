@@ -75,9 +75,10 @@ def data_adapter(iterator, opt, train):
                 n_shot = opt['data.test_shot'] or opt['data.shot']
                 n_query = opt['data.test_query'] or opt['data.query']
 
-            # TODO: check this is fine
-            xs = x[:n_way*n_shot].view(n_way, n_shot, *x.size()[1:])
-            xq = x[n_way*n_shot:].view(n_way, n_query, *x.size()[1:])
+            # TODO: check this is fine -> it was not fine
+            x = x.view(n_way, n_shot + n_query, *x.size()[1:])
+            xs = x[:, :n_shot].contiguous()
+            xq = x[:, n_shot:].contiguous()
 
             if opt['data.cuda']:
                 xs = xs.cuda()
@@ -186,6 +187,8 @@ def main(opt):
         with Timer() as train_load_timer:
 
             sample_train, new_epoch = train_iter.next()
+            # For debug
+            #plt.imshow(0.5 + 0.5 * np.rollaxis(sample_train['xs'].numpy(), 2, 5)[0].reshape((5 * 84, 84, 3)))
 
         # Compute loss; backprop
         with Timer() as train_backprop_timer:
