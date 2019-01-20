@@ -205,10 +205,17 @@ def main(opt):
                 # Should be 64 for omniglot and 1600 for miniimagenet
 
             # Supervised and Clustering Losses
-            supervised_loss, train_supervised_info = model.supervised_loss(embedding_train, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
-            __, train_clustering_info = model.clustering_loss(embedding_train, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
+            train_supervised_info = model.supervised_loss(embedding_train, regularization=regularization)
+            train_clustering_info = model.clustering_loss(embedding_train, regularization=regularization)
 
-            total_loss = supervised_loss
+            if opt['train_loss'] == 'softmax':  # softmax
+                total_loss = train_supervised_info['SupervisedLoss_softmax']
+            elif opt['train_loss'] == 'sinkhorn':
+                total_loss = train_supervised_info['SupervisedLoss_sinkhorn']
+            elif opt['train_loss'] == 'evalonly':
+                total_loss = torch.zeros([])
+            else:
+                raise Exception('Unknown meta-training loss {}'.format(opt['train_loss']))
 
             if opt['centroid_loss'] > 0. :
                 centroid_loss = opt['centroid_loss'] * train_supervised_info['ClassVariance']
@@ -216,16 +223,24 @@ def main(opt):
                 summary.log(iteration, 'train/CentroidLoss', centroid_loss.item())  # Supervised accuracy
             summary.log(iteration, 'train/CentroidLossUnscaled', train_supervised_info['ClassVariance'].item())  # Supervised accuracy
 
-            if not opt['rawinput']:
+            if not opt['rawinput'] and opt['train_loss'] != 'evalonly':
                 # No need to backprop in rawinput mode
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
 
-        summary.log(iteration, 'train/SupervisedAcc', train_supervised_info['SupervisedAcc'])
-        summary.log(iteration, 'train/SupervisedLoss', train_supervised_info['SupervisedLoss'])
-        summary.log(iteration, 'train/SupportClusteringAcc', train_clustering_info['SupportClusteringAcc'])
-        summary.log(iteration, 'train/QueryClusteringAcc', train_clustering_info['QueryClusteringAcc'])
+        # supervised losses
+        summary.log(iteration, 'train/SupervisedAcc_softmax', train_supervised_info['SupervisedAcc_softmax'].item())
+        summary.log(iteration, 'train/SupervisedAcc_sinkhorn', train_supervised_info['SupervisedAcc_sinkhorn'].item())
+        summary.log(iteration, 'train/SupervisedLoss_softmax', train_supervised_info['SupervisedLoss_softmax'].item())
+        summary.log(iteration, 'train/SupervisedLoss_sinkhorn', train_supervised_info['SupervisedLoss_sinkhorn'].item())
+
+        # unsupervised losses
+        summary.log(iteration, 'train/SupportClusteringAcc_softmax', train_clustering_info['SupportClusteringAcc_softmax'])
+        summary.log(iteration, 'train/SupportClusteringAcc_sinkhorn', train_clustering_info['SupportClusteringAcc_sinkhorn'])
+        summary.log(iteration, 'train/QueryClusteringAcc_softmax', train_clustering_info['QueryClusteringAcc_softmax'])
+        summary.log(iteration, 'train/QueryClusteringAcc_sinkhorn', train_clustering_info['QueryClusteringAcc_sinkhorn'])
+
         summary.log(iteration, 'train/_TimeLoad', train_load_timer.interval)
         summary.log(iteration, 'train/_TimeBackprop', train_backprop_timer.interval)
         summary.log(iteration, 'train/TotalLoss', total_loss.item())  # Supervised accuracy
@@ -241,15 +256,23 @@ def main(opt):
                 # z = h(x)
                 embedding_val = model.embed(sample_val, raw_input=opt['rawinput'])
 
-                __, val_supervised_info = model.supervised_loss(embedding_val, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
-                __, val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization, supervised_sinkhorn_loss=opt['supervisedsinkhorn'])
+                val_supervised_info = model.supervised_loss(embedding_val, regularization=regularization)
+                val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization)
 
-            print 'Immediate', val_clustering_info['SupportClusteringAcc']
+            print 'Immediate', val_clustering_info['SupportClusteringAcc_sinkhorn']
 
-            summary.log(iteration, 'val/SupervisedAcc', val_supervised_info['SupervisedAcc'])
-            summary.log(iteration, 'val/SupervisedLoss', val_supervised_info['SupervisedLoss'])
-            summary.log(iteration, 'val/SupportClusteringAcc', val_clustering_info['SupportClusteringAcc'])
-            summary.log(iteration, 'val/QueryClusteringAcc', val_clustering_info['QueryClusteringAcc'])
+            # supervised losses
+            summary.log(iteration, 'val/SupervisedAcc_softmax', val_supervised_info['SupervisedAcc_softmax'].item())
+            summary.log(iteration, 'val/SupervisedAcc_sinkhorn', val_supervised_info['SupervisedAcc_sinkhorn'].item())
+            summary.log(iteration, 'val/SupervisedLoss_softmax', val_supervised_info['SupervisedLoss_softmax'].item())
+            summary.log(iteration, 'val/SupervisedLoss_sinkhorn', val_supervised_info['SupervisedLoss_sinkhorn'].item())
+
+            # unsupervised losses
+            summary.log(iteration, 'val/SupportClusteringAcc_softmax', val_clustering_info['SupportClusteringAcc_softmax'])
+            summary.log(iteration, 'val/SupportClusteringAcc_sinkhorn', val_clustering_info['SupportClusteringAcc_sinkhorn'])
+            summary.log(iteration, 'val/QueryClusteringAcc_softmax', val_clustering_info['QueryClusteringAcc_softmax'])
+            summary.log(iteration, 'val/QueryClusteringAcc_sinkhorn', val_clustering_info['QueryClusteringAcc_sinkhorn'])
+
             summary.log(iteration, 'val/_TimeLoad', val_load_timer.interval)
             summary.log(iteration, 'val/_TimeEval', val_eval_timer.interval)
 

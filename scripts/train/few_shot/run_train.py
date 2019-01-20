@@ -75,7 +75,7 @@ parser.add_argument('--iterations', default=100000, type=int, help='number of it
 parser.add_argument('--checkpoint', default='', help='load model checkpoint')
 parser.add_argument('--checkpoint-state', default='', help='load model state checkpoint')
 parser.add_argument('--centroid-loss', default=0., type=float, help='centroid loss penalty')
-parser.add_argument('--supervisedsinkhorn', required=True, type=int, help='supervised sinkhorn or softmax matching')
+parser.add_argument('--train-loss', required=True, choices=['softmax', 'sinkhorn', 'twostep', 'evalonly'], help='meta-training loss')
 parser.add_argument('--temperature', default=1., type=float, help='temperature for softmax and assignments')
 parser.add_argument('--rawinput', default=0, type=int, help='use raw inputs or train features (model weights are ignored)')
 # always the same for meta-train and meta-validation unless otherwise specified

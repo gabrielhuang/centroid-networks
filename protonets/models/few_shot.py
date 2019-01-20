@@ -67,7 +67,7 @@ class Protonet(nn.Module):
         return embedded_sample
 
 
-    def supervised_loss(self, embedded_sample, regularization, supervised_sinkhorn_loss):
+    def supervised_loss(self, embedded_sample, regularization):
 
         # Prepare data
         z_support = embedded_sample['zs'] # support
@@ -84,40 +84,48 @@ class Protonet(nn.Module):
 
         # Compute prototypes
         z_proto = z_support.view(n_class, n_support, z_dim).mean(1)
-        # THis was clearly wrong!
-        bad_class_variance = ((z_proto - z_support.view(n_class, n_support, z_dim).mean(1)[:, None, :])**2).mean()
 
         # We average variance over all n_class*n_support points, but not over z_dim (not necessarily meaningful for z_dim)
-        # TODO: check if that's the best normalization
-        class_variance = ((z_support - z_proto[:, None, :])**2).mean(2).mean(1).sum()
+        # TODO: check if that's the best normalization - Now averaging everything except over dimensions
+        class_variance = ((z_support - z_proto[:, None, :])**2).mean(1).mean(0).sum()
 
         # Compute query-prototype distances
         query_dists = euclidean_dist(z_query.view(n_class*n_query, z_dim), z_proto)
 
         # Assign query points to prototypes
-        if not supervised_sinkhorn_loss:
-            # Default protonet. Assignment is softmax on squared cluster-sample distance
-            # divide/multiply by correct temperature/regularization
-            log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1).view(n_class, n_query, -1)
-        else:
-            # This part changes
-            # Assignment is now regularized, optimal transport, but transportation cost is given by distance matrix.
-            # this differs from previously because the regularization is slightly different
-            # todo: grid search on iterations
-            __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
-                query_dists, regularization=regularization, iterations=10)
-            log_p_y_query = log_assignment.view(n_class, n_query, -1)
+
+        ############ Softmax conditionals ###################
+        # Default protonet. Assignment is softmax on squared cluster-sample distance
+        # divide/multiply by correct temperature/regularization
+        softmax_log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1).view(n_class, n_query, -1)
 
         # Supervised Loss (Query/Validation)
-        supervised_loss = -log_p_y_query.gather(2, target_inds_query).squeeze().view(-1).mean()
+        softmax_supervised_loss = -softmax_log_p_y_query.gather(2, target_inds_query).squeeze().view(-1).mean()
 
         # Supervised Accuracy and Predictions
-        _, y_hat_query = log_p_y_query.max(2)
-        supervised_accuracy = torch.eq(y_hat_query, target_inds_query.squeeze()).float().mean()
+        _, softmax_y_hat_query = softmax_log_p_y_query.max(2)
+        softmax_supervised_accuracy = torch.eq(softmax_y_hat_query, target_inds_query.squeeze()).float().mean()
 
-        return supervised_loss, {
-            'SupervisedLoss': supervised_loss.item(),
-            'SupervisedAcc': supervised_accuracy.item(),
+        ############ Sinkhorn conditionals ##################
+        # Assignment is now regularized with optimal transport, but transportation cost is given by distance matrix.
+        # this differs from previously because the regularization is slightly different
+        # todo: grid search on iterations
+        __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
+            query_dists, regularization=regularization, iterations=10)
+        sinkhorn_log_p_y_query = log_assignment.view(n_class, n_query, -1)
+
+        # Supervised Loss (Query/Validation)
+        sinkhorn_supervised_loss = -sinkhorn_log_p_y_query.gather(2, target_inds_query).squeeze().view(-1).mean()
+
+        # Supervised Accuracy and Predictions
+        _, sinkhorn_y_hat_query = sinkhorn_log_p_y_query.max(2)
+        sinkhorn_supervised_accuracy = torch.eq(sinkhorn_y_hat_query, target_inds_query.squeeze()).float().mean()
+
+        return {
+            'SupervisedAcc_softmax': softmax_supervised_accuracy,
+            'SupervisedAcc_sinkhorn': sinkhorn_supervised_accuracy,
+            'SupervisedLoss_softmax': softmax_supervised_loss,
+            'SupervisedLoss_sinkhorn': sinkhorn_supervised_loss,
             'ClassVariance': class_variance
         }
 
@@ -152,7 +160,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def clustering_loss(self, embedded_sample, regularization, supervised_sinkhorn_loss):
+    def clustering_loss(self, embedded_sample, regularization):
         '''
         This function returns results for two settings (simultaneously):
         - Learning to Cluster:
@@ -205,42 +213,50 @@ class ClusterNet(Protonet):
         query_dists = euclidean_dist(z_query_flat, z_centroid)
 
         # Assign support set points to centroids (using either Sinkhorn or Softmax)
-        if supervised_sinkhorn_loss:
+        all_log_p_y_support = {}
+        ############ Sinkhorn conditionals ###################
+        # Optimal assignment (could have kept previous result probably)
+        __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
+            support_dists, regularization=regularization, iterations=10)
+        # Predictions are already the optimal assignment
+        all_log_p_y_support['sinkhorn'] = log_assignment
 
-            # Optimal assignment (could have kept previous result probably)
-            __, __, log_assignment, __, __ = wasserstein.compute_sinkhorn_stable(
-                support_dists, regularization=regularization, iterations=10)
-            # Predictions are already the optimal assignment
-            log_p_y_support = log_assignment
+        ############ Softmax conditionals ###################
+        # Unpermuted Log Probabilities
+        all_log_p_y_support['softmax'] = F.log_softmax(-support_dists*regularization, dim=1)
 
-        else: # Classic softmax
 
-            # Unpermuted Log Probabilities
-            log_p_y_support = F.log_softmax(-support_dists*regularization, dim=1)
+        ############ Make predictions in Few-shot clustering (Support) and Unsupervised Few shot learning (Query) mode ###################
+        all_support_clustering_accuracy = {}
+        all_query_clustering_accuracy = {}
+        for conditional_mode, log_p_y_support in all_log_p_y_support.items():
 
-        # Build accuracy permutation matrix (to match support with ground truth)
-        # this could be cleaner using "gather"
-        __, y_hat_support = log_p_y_support.max(1)
-        y_hat_support = y_hat_support.cpu().numpy()  # to numpy, no need to backprop anyways
-        one_hot_prediction = torch.zeros((n_class * n_support, n_class)).to(z_support.device)
-        one_hot_prediction[range(n_class * n_support), y_hat_support] = 1.
-        accuracy_permutation_cost_support = -one_hot_prediction.view(n_class, n_support, n_class, 1) * target_inds_dummy_support.view(
-            n_class, n_support, 1, n_class)
-        accuracy_permutation_cost_support = accuracy_permutation_cost_support.sum(1).sum(0)
+            # Build accuracy permutation matrix (to match support with ground truth)
+            # this could be cleaner using "gather"
+            __, y_hat_support = log_p_y_support.max(1)
+            y_hat_support = y_hat_support.cpu().numpy()  # to numpy, no need to backprop anyways
+            one_hot_prediction = torch.zeros((n_class * n_support, n_class)).to(z_support.device)
+            one_hot_prediction[range(n_class * n_support), y_hat_support] = 1.
+            accuracy_permutation_cost_support = -one_hot_prediction.view(n_class, n_support, n_class, 1) * target_inds_dummy_support.view(
+                n_class, n_support, 1, n_class)
+            accuracy_permutation_cost_support = accuracy_permutation_cost_support.sum(1).sum(0)
 
-        # Use Hungarian algorithm to find best match
-        __, __, cols_support = wasserstein.compute_hungarian(accuracy_permutation_cost_support)
-        support_permuted_prediction = cols_support[y_hat_support]
-        support_clustering_accuracy = (support_permuted_prediction == target_inds_support.cpu().numpy().flatten()).mean()
+            # Use Hungarian algorithm to find best match
+            __, __, cols_support = wasserstein.compute_hungarian(accuracy_permutation_cost_support)
+            support_permuted_prediction = cols_support[y_hat_support]
+            support_clustering_accuracy = (support_permuted_prediction == target_inds_support.cpu().numpy().flatten()).mean()
 
-        # Now, run standard prototypical networks, but plugging centroids instead of prototypes
-        log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1)
-        _, y_hat_query = log_p_y_query.max(1)
-        y_hat_query = y_hat_query.cpu().numpy()
+            # Now, run standard prototypical networks, but plugging centroids instead of prototypes
+            log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1)
+            _, y_hat_query = log_p_y_query.max(1)
+            y_hat_query = y_hat_query.cpu().numpy()
 
-        # Permute predictions
-        query_permuted_predictions = cols_support[y_hat_query]
-        query_clustering_accuracy = (query_permuted_predictions == target_inds_query.cpu().numpy().flatten()).mean()
+            # Permute predictions
+            query_permuted_predictions = cols_support[y_hat_query]
+            query_clustering_accuracy = (query_permuted_predictions == target_inds_query.cpu().numpy().flatten()).mean()
+
+            all_support_clustering_accuracy[conditional_mode] = support_clustering_accuracy
+            all_query_clustering_accuracy[conditional_mode] = query_clustering_accuracy
 
         # This was only useful when backpropping end-to-end.
         # # Build permutation cost matrix
@@ -266,9 +282,11 @@ class ClusterNet(Protonet):
         # might not backprop through the graph though ...
         # it might or might not be equivalent due to the contraints (is it a critical point?)
 
-        return None, {
-            'SupportClusteringAcc': support_clustering_accuracy,
-            'QueryClusteringAcc': query_clustering_accuracy
+        return {
+            'SupportClusteringAcc_softmax': all_support_clustering_accuracy['softmax'],
+            'SupportClusteringAcc_sinkhorn': all_support_clustering_accuracy['sinkhorn'],
+            'QueryClusteringAcc_softmax': all_query_clustering_accuracy['softmax'],
+            'QueryClusteringAcc_sinkhorn': all_query_clustering_accuracy['sinkhorn']
         }
 
 
