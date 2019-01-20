@@ -193,6 +193,8 @@ def main(opt):
         # Compute loss; backprop
         with Timer() as train_backprop_timer:
 
+            model.train()  # batchnorm train mode
+
             # z = h(x)
             embedding_train = model.embed(sample_train, raw_input=opt['rawinput'])
 
@@ -252,6 +254,9 @@ def main(opt):
                 sample_val, __ = val_iter.next()
 
             with Timer() as val_eval_timer:
+
+                # Weird? deactivate batchnorm train mode
+                model.eval()
 
                 # z = h(x)
                 embedding_val = model.embed(sample_val, raw_input=opt['rawinput'])
