@@ -300,13 +300,20 @@ def main(opt):
             summary.log(iteration, 'other/_LR', scheduler.get_lr())
 
         # Save model
-        if iteration>0 and new_epoch:
+        if iteration % 200 == 0:
+
             if opt['rawinput']:
                 print 'No model to save in raw_input mode'
             else:
-                print 'Saving model'
+                print 'Saving current model'
                 model.cpu()
+
                 torch.save(model, os.path.join(opt['log.exp_dir'], 'current_model.pt'))
+
+                if iteration % 2000 == 0:
+                    print 'Saving model at iteration', iteration
+                    torch.save(model, os.path.join(opt['log.exp_dir'], 'model_{}.pt'.format(iteration)))
+
                 if opt['data.cuda']:
                     model.cuda()
 
