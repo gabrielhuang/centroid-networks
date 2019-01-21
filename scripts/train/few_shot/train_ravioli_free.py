@@ -38,14 +38,15 @@ class Summary(object):
             sorted_logs[log] = list(sorted(self.logs[log].items()))
         return sorted_logs
 
-    def print_summary(self, n_avg=50):
+    def print_summary(self, n_avg=50, exclude=None):
         sorted_logs = self.sorted()
         print 'Summary'
         for log in sorted_logs:
             tail = sorted_logs[log]
             tail = tail[-min(len(tail), n_avg):]
             val = dict(tail).values()
-            print '\t{}: {:.4f} +/- {:.4f}'.format(log, np.mean(val), np.std(val))
+            if exclude is None or exclude not in log:
+                print '\t{}: {:.4f} +/- {:.4f}'.format(log, np.mean(val), np.std(val))
 
 class Timer:
     def __enter__(self):
@@ -313,7 +314,10 @@ def main(opt):
 
         if iteration % 10 == 0:
             print 'Iteration', iteration
-            summary.print_summary()
+            if opt['hide_test']:
+                summary.print_summary(exclude='test/')
+            else:
+                summary.print_summary()
 
         #### Save log
         if iteration % 500 == 0 or iteration < 10:

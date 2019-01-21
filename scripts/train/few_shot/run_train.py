@@ -78,7 +78,7 @@ parser.add_argument('--centroid-loss', default=0., type=float, help='centroid lo
 parser.add_argument('--train-loss', required=True, choices=['softmax', 'sinkhorn', 'twostep', 'evalonly'], help='meta-training loss')
 parser.add_argument('--temperature', default=1., type=float, help='temperature for softmax and assignments')
 parser.add_argument('--rawinput', default=0, type=int, help='use raw inputs or train features (model weights are ignored)')
-# always the same for meta-train and meta-validation unless otherwise specified
+parser.add_argument('--hide-test', default=1, type=int, help='hide meta-testing metrics (they will be logged)')
 
 args = vars(parser.parse_args())
 
