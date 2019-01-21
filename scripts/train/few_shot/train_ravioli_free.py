@@ -143,13 +143,15 @@ def main(opt):
         train_iter = data_adapter(make_infinite(train_loader), opt, train=True)
         val_iter = None
     else:
-        data = data_utils.load(opt, ['train', 'val'])
+        data = data_utils.load(opt, ['train', 'val', 'test'])
         train_loader = data['train']
         val_loader = data['val']
+        test_loader = data['test']
 
         # Prepare datasets
         train_iter = data_adapter(make_infinite(train_loader), opt, train=True)
         val_iter = data_adapter(make_infinite(val_loader), opt, train=False)
+        test_iter = data_adapter(make_infinite(test_loader), opt, train=False)
 
     ###########################################
     # Create model and optimizer
@@ -251,41 +253,43 @@ def main(opt):
         summary.log(iteration, 'train/_TimeBackprop', train_backprop_timer.interval)
         summary.log(iteration, 'train/TotalLoss', total_loss.item())  # Supervised accuracy
 
-        # Sample from validation
+        # Sample from validation and test
         if iteration % 10 == 0 and val_iter is not None:
-            with Timer() as val_load_timer:
 
-                sample_val, __ = val_iter.next()
+            for subset, subset_iter in [('val', val_iter), ('test', test_iter)]:
 
-            with Timer() as val_eval_timer:
+                with Timer() as val_load_timer:
 
-                # Weird? deactivate batchnorm train mode
-                model.eval()
+                    sample_val, __ = subset_iter.next()
 
-                # z = h(x)
-                embedding_val = model.embed(sample_val, raw_input=opt['rawinput'])
+                with Timer() as val_eval_timer:
 
-                val_supervised_info = model.supervised_loss(embedding_val, regularization=regularization)
-                val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization)
+                    # Weird? deactivate batchnorm train mode
+                    model.eval()
 
-            print 'Immediate', val_clustering_info['SupportClusteringAcc_sinkhorn']
+                    # z = h(x)
+                    embedding_val = model.embed(sample_val, raw_input=opt['rawinput'])
 
-            # supervised losses
-            summary.log(iteration, 'val/SupervisedAcc_softmax', val_supervised_info['SupervisedAcc_softmax'].item())
-            summary.log(iteration, 'val/SupervisedAcc_sinkhorn', val_supervised_info['SupervisedAcc_sinkhorn'].item())
-            summary.log(iteration, 'val/SupervisedAcc_twostep', val_supervised_info['SupervisedAcc_twostep'].item())
-            summary.log(iteration, 'val/SupervisedLoss_softmax', val_supervised_info['SupervisedLoss_softmax'].item())
-            summary.log(iteration, 'val/SupervisedLoss_sinkhorn', val_supervised_info['SupervisedLoss_sinkhorn'].item())
-            summary.log(iteration, 'val/SupervisedLoss_twostep', val_supervised_info['SupervisedLoss_twostep'].item())
+                    val_supervised_info = model.supervised_loss(embedding_val, regularization=regularization)
+                    val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization)
 
-            # unsupervised losses
-            summary.log(iteration, 'val/SupportClusteringAcc_softmax', val_clustering_info['SupportClusteringAcc_softmax'])
-            summary.log(iteration, 'val/SupportClusteringAcc_sinkhorn', val_clustering_info['SupportClusteringAcc_sinkhorn'])
-            summary.log(iteration, 'val/QueryClusteringAcc_softmax', val_clustering_info['QueryClusteringAcc_softmax'])
-            summary.log(iteration, 'val/QueryClusteringAcc_sinkhorn', val_clustering_info['QueryClusteringAcc_sinkhorn'])
 
-            summary.log(iteration, 'val/_TimeLoad', val_load_timer.interval)
-            summary.log(iteration, 'val/_TimeEval', val_eval_timer.interval)
+                # supervised losses
+                summary.log(iteration, '{}/SupervisedAcc_softmax'.format(subset), val_supervised_info['SupervisedAcc_softmax'].item())
+                summary.log(iteration, '{}/SupervisedAcc_sinkhorn'.format(subset), val_supervised_info['SupervisedAcc_sinkhorn'].item())
+                summary.log(iteration, '{}/SupervisedAcc_twostep'.format(subset), val_supervised_info['SupervisedAcc_twostep'].item())
+                summary.log(iteration, '{}/SupervisedLoss_softmax'.format(subset), val_supervised_info['SupervisedLoss_softmax'].item())
+                summary.log(iteration, '{}/SupervisedLoss_sinkhorn'.format(subset), val_supervised_info['SupervisedLoss_sinkhorn'].item())
+                summary.log(iteration, '{}/SupervisedLoss_twostep'.format(subset), val_supervised_info['SupervisedLoss_twostep'].item())
+
+                # unsupervised losses
+                summary.log(iteration, '{}/SupportClusteringAcc_softmax'.format(subset), val_clustering_info['SupportClusteringAcc_softmax'])
+                summary.log(iteration, '{}/SupportClusteringAcc_sinkhorn'.format(subset), val_clustering_info['SupportClusteringAcc_sinkhorn'])
+                summary.log(iteration, '{}/QueryClusteringAcc_softmax'.format(subset), val_clustering_info['QueryClusteringAcc_softmax'])
+                summary.log(iteration, '{}/QueryClusteringAcc_sinkhorn'.format(subset), val_clustering_info['QueryClusteringAcc_sinkhorn'])
+
+                summary.log(iteration, '{}/_TimeLoad'.format(subset), val_load_timer.interval)
+                summary.log(iteration, '{}/_TimeEval'.format(subset), val_eval_timer.interval)
 
         # End of epoch? -> schedule new learning rate
         if new_epoch and iteration>0:

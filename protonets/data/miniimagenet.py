@@ -161,6 +161,14 @@ def load(opt, splits):
                                     num_workers=8, pin_memory=True)
 
             ret[split] = val_loader
+        elif split == 'test':
+            testset = MiniImageNet(opt['data.root'], 'test', cuda=opt['data.cuda'])
+            test_sampler = CategoriesSampler(testset.label, 400,
+                                            n_way, n_support+n_query)
+            test_loader = DataLoader(dataset=testset, batch_sampler=test_sampler,
+                                    num_workers=8, pin_memory=True)
+
+            ret[split] = test_loader
         else:
             raise Exception('Split not implemented for MiniImagenet')
 
