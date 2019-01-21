@@ -55,6 +55,7 @@ useful_keys = [
     'val/SupportClusteringAcc_sinkhorn',
     'val/QueryClusteringAcc_softmax',
     'val/QueryClusteringAcc_sinkhorn',
+    'other/_LR'
 ]
 
 #print stats
