@@ -184,7 +184,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def clustering_loss(self, embedded_sample, regularization):
+    def clustering_loss(self, embedded_sample, regularization, clustering_type):
         '''
         This function returns results for two settings (simultaneously):
         - Learning to Cluster:
@@ -230,7 +230,14 @@ class ClusterNet(Protonet):
         target_inds_dummy_support = torch.FloatTensor(target_inds_dummy_support).to(z_query.device)
 
         # Cluster support set into clusters (both for learning to cluster and unsupervised few shot learning)
-        z_centroid, data_centroid_assignment = wasserstein.cluster_wasserstein(z_support_flat, n_class, stop_gradient=False, regularization=regularization)
+        if clustering_type == 'wasserstein':
+            z_centroid, __ = wasserstein.cluster_wasserstein(z_support_flat, n_class, stop_gradient=False, regularization=regularization)
+        elif clustering_type == 'kmeans':
+            z_centroid  = wasserstein.cluster_kmeans(z_support_flat, n_class, kmeansplusplus=False)
+        elif clustering_type == 'kmeansplusplus':
+            z_centroid  = wasserstein.cluster_kmeans(z_support_flat, n_class, kmeansplusplus=True)
+        else:
+            raise Exception('Clustering type not implemented {}'.format(clustering_type))
 
         # Pairwise distance from query set to centroids
         support_dists = euclidean_dist(z_support_flat, z_centroid)

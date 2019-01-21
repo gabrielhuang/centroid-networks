@@ -155,3 +155,59 @@ def compute_hungarian(m):
     matrix[row, col] = 1. / float(len(m))
     cost = (matrix * m_numpy).sum()
     return cost, torch.tensor(matrix), col
+
+
+def cluster_kmeans_flat(X, n_components, iterations=20, kmeansplusplus=False, epsilon=1e-6):
+    '''
+
+    :param X: tensor of shape (n_data, n_dim)
+    :param n_components: number of centroids
+    '''
+
+    assert len(X.size()) == 2, 'Please flatten input to cluster_wasserstein'
+
+    if not kmeansplusplus:  # initialize from points of dataset
+        indices = np.random.choice(range(len(X)), size=n_components, replace=False)
+        centroids = X[indices].clone()
+    else:  # follow k-means++ initialization scheme
+        initial_idx = np.random.randint(len(X))
+        centroids_list = []
+        for i in xrange(n_components):
+            if i == 0:
+                new_idx = np.random.randint(len(X))
+            else:
+                # Compute distances from each point to closest center
+                D = get_pairwise_distances(X, centroids)
+                D, __ = D.min(1)
+                p = D.cpu().numpy()
+                p = p / p.sum()  # needs to normalize in numpy for numerical errors
+                new_idx = np.random.choice(range(len(X)), p=p)
+            centroids_list.append(X[new_idx].clone())
+            centroids = torch.stack(centroids_list)
+
+    assignment_matrix = torch.zeros((len(X), n_components)).to(X.device)
+    rows = range(len(X))
+    for iteration in xrange(iterations):
+
+        # Get  pairwise distances
+        distances = get_pairwise_distances(X, centroids)
+
+        # Expectation - Assign each point to closest centroid
+        assignment = distances.argmin(1)
+        assignment_matrix.fill_(0)
+        assignment_matrix[rows, assignment] = 1.
+
+        # Maximization - Average assigned points
+        weights = assignment_matrix / (epsilon + assignment_matrix.sum(0))
+        centroids = torch.matmul(weights.t(), X)
+
+    return centroids
+
+
+def cluster_kmeans(X, n_components, iterations=20, kmeansplusplus=False, epsilon=1e-6):
+    X_flat = X.view((len(X), -1))
+    centroids_flat = cluster_kmeans_flat(X, n_components, iterations, kmeansplusplus, epsilon)
+    size = list(X.size())
+    size[0] = n_components
+    centroids = centroids_flat.view(size)
+    return centroids

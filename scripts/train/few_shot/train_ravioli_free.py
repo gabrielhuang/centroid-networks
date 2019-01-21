@@ -107,6 +107,10 @@ def main(opt):
     ###########################################
     # Boilerplate
     ###########################################
+
+    assert not (opt['clustering'] != 'wasserstein' and opt['train_loss'] in ['sinkhorn', 'twostep']),\
+        'Only Wasserstein clustering is compatible with Sinkhorn and Twostep meta-training losses'
+
     if not os.path.isdir(opt['log.exp_dir']):
         os.makedirs(opt['log.exp_dir'])
 
@@ -211,7 +215,7 @@ def main(opt):
 
             # Supervised and Clustering Losses
             train_supervised_info = model.supervised_loss(embedding_train, regularization=regularization)
-            train_clustering_info = model.clustering_loss(embedding_train, regularization=regularization)
+            train_clustering_info = model.clustering_loss(embedding_train, regularization=regularization, clustering_type=opt['clustering'])
 
             if opt['train_loss'] == 'softmax':  # softmax
                 total_loss = train_supervised_info['SupervisedLoss_softmax']
@@ -255,7 +259,7 @@ def main(opt):
         summary.log(iteration, 'train/TotalLoss', total_loss.item())  # Supervised accuracy
 
         # Sample from validation and test
-        if iteration % 10 == 0 and val_iter is not None:
+        if iteration % opt['validate_interval'] == 0 and val_iter is not None:
 
             for subset, subset_iter in [('val', val_iter), ('test', test_iter)]:
 
@@ -272,7 +276,7 @@ def main(opt):
                     embedding_val = model.embed(sample_val, raw_input=opt['rawinput'])
 
                     val_supervised_info = model.supervised_loss(embedding_val, regularization=regularization)
-                    val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization)
+                    val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization, clustering_type=opt['clustering'])
 
 
                 # supervised losses

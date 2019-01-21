@@ -72,6 +72,7 @@ parser.add_argument('--ravioli', type=int, default=0, help='1: use original code
 
 # Unsupervised Few-shot learning specific parameters
 parser.add_argument('--iterations', default=100000, type=int, help='number of iterations (i.e. episodes)')
+parser.add_argument('--validate-interval', default=10, type=int, help='validate every X training iterations')
 parser.add_argument('--checkpoint', default='', help='load model checkpoint')
 parser.add_argument('--checkpoint-state', default='', help='load model state checkpoint')
 parser.add_argument('--centroid-loss', default=0., type=float, help='centroid loss penalty')
@@ -79,6 +80,7 @@ parser.add_argument('--train-loss', required=True, choices=['softmax', 'sinkhorn
 parser.add_argument('--temperature', default=1., type=float, help='temperature for softmax and assignments')
 parser.add_argument('--rawinput', default=0, type=int, help='use raw inputs or train features (model weights are ignored)')
 parser.add_argument('--hide-test', default=1, type=int, help='hide meta-testing metrics (they will be logged)')
+parser.add_argument('--clustering', default='wasserstein', choices=['kmeans', 'kmeansplusplus', 'wasserstein'], help='which clustering algorithm to use')
 
 args = vars(parser.parse_args())
 
