@@ -46,8 +46,16 @@ for f in os.listdir(folder):
             print 'Skipping, file is incomplete'
 
 # Useful keys
-#useful_keys = ['val/acc']
-useful_keys = ['val/QueryClusteringAcc', 'val/SupportClusteringAcc', 'train/SupervisedAcc', 'val/SupervisedAcc']
+useful_keys = [
+    'train/SupervisedAcc_softmax',
+    'train/SupervisedAcc_sinkhorn',
+    'val/SupervisedAcc_softmax',
+    'val/SupervisedAcc_sinkhorn',
+    'val/SupportClusteringAcc_softmax',
+    'val/SupportClusteringAcc_sinkhorn',
+    'val/QueryClusteringAcc_softmax',
+    'val/QueryClusteringAcc_sinkhorn',
+]
 
 #print stats
 print 'Total of {} runs'.format(len(stats))
@@ -55,10 +63,13 @@ print 'Total of {} runs'.format(len(stats))
 
 for key in useful_keys:
     plt.figure()
+    print '*'*32
+    print key
+    print '*'*32
     # For all runs
     for f, stat in stats.items():
         x, y = zip(*sorted([(int(k), v) for k, v in stat[key].items()]))
-        smoothed_y = scipy.ndimage.filters.gaussian_filter1d(y, sigma=101)
+        smoothed_y = scipy.ndimage.filters.gaussian_filter1d(y, sigma=31)
         plt.plot(x, smoothed_y, label=f)
 
         print '\n{}  [{}]'.format(f, key)
