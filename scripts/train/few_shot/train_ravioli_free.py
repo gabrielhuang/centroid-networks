@@ -62,7 +62,6 @@ def data_adapter(iterator, opt, train):
     '''
     Adapter for miniimagenet loader (taken from other code)
     '''
-    assert opt['data.way'] == opt['data.test_way']
     for (sample, new_epoch) in iterator:
         if opt['data.dataset'] == 'miniimagenet':
             (x, y) = sample
