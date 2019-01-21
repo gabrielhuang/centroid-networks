@@ -6,4 +6,5 @@ PYTHONPATH=. $COMMON --log.exp_dir results/omniglot5.sinkhorn.centroid0.1 --trai
 PYTHONPATH=. $COMMON --log.exp_dir results/omniglot5.sinkhorn.centroid0.01 --train-loss sinkhorn --centroid-loss 0.01 & \
 PYTHONPATH=. $COMMON --log.exp_dir results/omniglot5.sinkhorn.centroid0.001 --train-loss sinkhorn --centroid-loss 0.001 & \
 PYTHONPATH=. $COMMON --log.exp_dir results/omniglot5.softmax.centroid0.1 --train-loss softmax --centroid-loss 0.1 & \
-PYTHONPATH=. $COMMON --log.exp_dir results/omniglot5.sinkhorn.centroid0.01 --train-loss softmax --centroid-loss 0.01 && fg
+PYTHONPATH=. $COMMON --log.exp_dir results/omniglot5.sinkhorn.centroid0.01 --train-loss softmax --centroid-loss 0.01 & \
+PYTHONPATH=. $COMMON --log.exp_dir results/omniglot5.sinkhorn.centroid0.001 --train-loss softmax --centroid-loss 0.001 && fg
