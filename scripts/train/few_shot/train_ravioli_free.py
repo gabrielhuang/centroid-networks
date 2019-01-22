@@ -45,7 +45,7 @@ class Summary(object):
             tail = sorted_logs[log]
             tail = tail[-min(len(tail), n_avg):]
             val = dict(tail).values()
-            if exclude is None or exclude not in log:
+            if (exclude is None or exclude not in log) and '_reg' not in log:
                 print '\t{}: {:.4f} +/- {:.4f}'.format(log, np.mean(val), np.std(val))
 
 class Timer:
