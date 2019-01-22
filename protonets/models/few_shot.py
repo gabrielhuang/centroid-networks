@@ -87,7 +87,8 @@ class Protonet(nn.Module):
 
         # We average variance over all n_class*n_support points, but not over z_dim (not necessarily meaningful for z_dim)
         # TODO: check if that's the best normalization - Now averaging everything except over dimensions
-        class_variance = ((z_support - z_proto[:, None, :])**2).mean(1).mean(0).sum()
+        #class_variance = ((z_support - z_proto[:, None, :])**2).mean(1).mean(0).sum()
+        class_variance = ((z_support - z_proto[:, None, :])**2).mean()
         #old_class_variance = ((z_support - z_proto[:, None, :])**2).mean(2).mean(1).sum()
 
         # Compute support query-prototype distances
