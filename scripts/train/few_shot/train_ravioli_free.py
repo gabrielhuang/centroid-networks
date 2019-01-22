@@ -186,7 +186,9 @@ def main(opt):
     summary = Summary()
 
     #### Start of training loop
-    regularization = 1. / opt['temperature']
+    softmax_regularization = 1. / opt['temperature']
+    sinkhorn_regularizations = [float(x) for x in opt['regularizations'].split(',')]
+    print 'Sinkhorn regularizations will take parameters', sinkhorn_regularizations
     for iteration in xrange(opt['iterations']):
 
         # Sample from training
@@ -213,8 +215,16 @@ def main(opt):
                 # Should be 64 for omniglot and 1600 for miniimagenet
 
             # Supervised and Clustering Losses
-            train_supervised_info = model.supervised_loss(embedding_train, regularization=regularization)
-            train_clustering_info = model.clustering_loss(embedding_train, regularization=regularization, clustering_type=opt['clustering'])
+            train_supervised_info = model.supervised_loss(embedding_train, regularization=softmax_regularization)
+            for skr in sinkhorn_regularizations:
+                gamma = 1. / skr
+                train_clustering_info = model.clustering_loss(embedding_train, regularization=gamma, clustering_type=opt['clustering'])
+                # unsupervised losses
+                summary.log(iteration, 'train/SupportClusteringAcc_softmax_reg{}'.format(skr), train_clustering_info['SupportClusteringAcc_softmax'])
+                summary.log(iteration, 'train/SupportClusteringAcc_sinkhorn_reg{}'.format(skr), train_clustering_info['SupportClusteringAcc_sinkhorn'])
+                summary.log(iteration, 'train/QueryClusteringAcc_softmax_reg{}'.format(skr), train_clustering_info['QueryClusteringAcc_softmax'])
+                summary.log(iteration, 'train/QueryClusteringAcc_sinkhorn_reg{}'.format(skr), train_clustering_info['QueryClusteringAcc_sinkhorn'])
+
 
             if opt['train_loss'] == 'softmax':  # softmax
                 total_loss = train_supervised_info['SupervisedLoss_softmax']
@@ -274,8 +284,17 @@ def main(opt):
                     # z = h(x)
                     embedding_val = model.embed(sample_val, raw_input=opt['rawinput'])
 
-                    val_supervised_info = model.supervised_loss(embedding_val, regularization=regularization)
-                    val_clustering_info = model.clustering_loss(embedding_val, regularization=regularization, clustering_type=opt['clustering'])
+                    val_supervised_info = model.supervised_loss(embedding_val, regularization=softmax_regularization)
+
+                    for skr in sinkhorn_regularizations:
+                        gamma = 1. / skr
+                        val_clustering_info = model.clustering_loss(embedding_val, regularization=gamma, clustering_type=opt['clustering'])
+
+                        # log unsupervised losses
+                        summary.log(iteration, 'val/SupportClusteringAcc_softmax_reg{}'.format(skr), val_clustering_info['SupportClusteringAcc_softmax'])
+                        summary.log(iteration, 'val/SupportClusteringAcc_sinkhorn_reg{}'.format(skr), val_clustering_info['SupportClusteringAcc_sinkhorn'])
+                        summary.log(iteration, 'val/QueryClusteringAcc_softmax_reg{}'.format(skr), val_clustering_info['QueryClusteringAcc_softmax'])
+                        summary.log(iteration, 'val/QueryClusteringAcc_sinkhorn_reg{}'.format(skr), val_clustering_info['QueryClusteringAcc_sinkhorn'])
 
 
                 # supervised losses
