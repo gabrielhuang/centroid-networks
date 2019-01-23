@@ -179,7 +179,7 @@ def cluster_kmeans_flat(X, n_components, iterations=20, kmeansplusplus=False, ep
                 # Compute distances from each point to closest center
                 D = get_pairwise_distances(X, centroids)
                 D, __ = D.min(1)
-                p = D.cpu().numpy()
+                p = D.detach().cpu().numpy()
                 p = p / p.sum()  # needs to normalize in numpy for numerical errors
                 new_idx = np.random.choice(range(len(X)), p=p)
             centroids_list.append(X[new_idx].clone())

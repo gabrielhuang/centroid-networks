@@ -98,7 +98,7 @@ if args['train_loss'] == 'evalonly':
     if not args['checkpoint'] and not args['checkpoint_state']:
         args['checkpoint'] = '{}/current_model.pt'.format(model_dir)
 
-    assert (args['checkpoint'] or args['checkpoint-state']) or args['rawinput'], 'Really? Evaluate untrained model?'
+    assert (args['checkpoint'] or args['checkpoint_state']) or args['rawinput'], 'Really? Evaluate untrained model?'
 
 if args['ravioli']:
     train.main(args)
