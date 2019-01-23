@@ -7,6 +7,7 @@ from torch.autograd import Variable
 
 from protonets.models import register_model
 from . import wasserstein
+from protonets.models.vgg import VGGS
 
 from .utils import euclidean_dist
 
@@ -343,5 +344,22 @@ def load_clusternet_conv(**kwargs):
         conv_block(hid_dim, z_dim),
         Flatten()
     )
+
+    return ClusterNet(encoder)
+
+
+
+@register_model('ccn')
+def load_clusternet_conv(**kwargs):
+    x_dim = kwargs['x_dim']
+    hid_dim = kwargs['hid_dim']
+    z_dim = kwargs['z_dim']
+
+    vggs = VGGS(2)  # it is assumed input of size 1x32x32
+
+    encoder = nn.Sequential([
+        vggs,
+        Flatten()
+    ])
 
     return ClusterNet(encoder)
