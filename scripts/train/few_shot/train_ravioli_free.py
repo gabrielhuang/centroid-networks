@@ -48,6 +48,18 @@ class Summary(object):
             if (exclude is None or exclude not in log) and '_reg' not in log:
                 print '\t{}: {:.4f} +/- {:.4f}'.format(log, np.mean(val), np.std(val))
 
+    def print_full_summary(self, exclude=None):
+        sorted_logs = self.sorted()
+        print 'Summary'
+        for log in sorted_logs:
+            tail = sorted_logs[log]
+            val = dict(tail).values()
+            if (exclude is None or exclude not in log) and '_reg' not in log:
+                mean = np.mean(val)
+                std = np.std(val)
+                confidence95 = 1.96 * std / np.sqrt(len(val))
+                print '\t{}: {:.4f} +/- {:.4f} (std: {:.4f})'.format(log, mean, confidence95, std)
+
 class Timer:
     def __enter__(self):
         self.start = time.clock()
@@ -293,10 +305,10 @@ def main(opt):
                         val_clustering_info = model.clustering_loss(embedding_val, regularization=gamma, clustering_type=opt['clustering'])
 
                         # log unsupervised losses
-                        summary.log(iteration, 'val/SupportClusteringAcc_softmax_reg{}'.format(skr), val_clustering_info['SupportClusteringAcc_softmax'])
-                        summary.log(iteration, 'val/SupportClusteringAcc_sinkhorn_reg{}'.format(skr), val_clustering_info['SupportClusteringAcc_sinkhorn'])
-                        summary.log(iteration, 'val/QueryClusteringAcc_softmax_reg{}'.format(skr), val_clustering_info['QueryClusteringAcc_softmax'])
-                        summary.log(iteration, 'val/QueryClusteringAcc_sinkhorn_reg{}'.format(skr), val_clustering_info['QueryClusteringAcc_sinkhorn'])
+                        summary.log(iteration, '{}/SupportClusteringAcc_softmax_reg{}'.format(subset, skr), val_clustering_info['SupportClusteringAcc_softmax'])
+                        summary.log(iteration, '{}/SupportClusteringAcc_sinkhorn_reg{}'.format(subset, skr), val_clustering_info['SupportClusteringAcc_sinkhorn'])
+                        summary.log(iteration, '{}/QueryClusteringAcc_softmax_reg{}'.format(subset, skr), val_clustering_info['QueryClusteringAcc_softmax'])
+                        summary.log(iteration, '{}/QueryClusteringAcc_sinkhorn_reg{}'.format(subset, skr), val_clustering_info['QueryClusteringAcc_sinkhorn'])
 
 
                 # supervised losses
@@ -326,7 +338,7 @@ def main(opt):
         # Save model
         if iteration % 200 == 0:
 
-            if opt['rawinput']:
+            if opt['rawinput'] or opt['train_loss'] == 'evalonly':
                 print 'No model to save in raw_input mode'
             else:
                 print 'Saving current model'
@@ -345,13 +357,23 @@ def main(opt):
 
         if iteration % 10 == 0:
             print 'Iteration', iteration
-            if opt['hide_test']:
-                summary.print_summary(exclude='test/')
+            if opt['train_loss'] == 'evalonly':
+                print '*'*32
+                print 'Full summary. Iteration {}'.format(iteration)
+                print '*'*32
+                summary.print_full_summary()
             else:
-                summary.print_summary()
+                print '!'*32
+                print 'Running averages. Iteration {}'.format(iteration)
+                print '!'*32
+                summary.print_full_summary()
+                if opt['hide_test']:
+                    summary.print_summary(exclude='test/')
+                else:
+                    summary.print_summary()
 
         #### Save log
-        if iteration % 500 == 0 or iteration < 10:
+        if iteration % 500 == 0 or iteration < 10 or (iteration % 100 == 0 and opt['train_loss'] == 'evalonly'):
             try:
                 with open(os.path.join(opt['log.exp_dir'], 'log.json'), 'wb') as fp:
                     json.dump(summary.logs, fp)

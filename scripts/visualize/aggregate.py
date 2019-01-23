@@ -42,7 +42,7 @@ for f in os.listdir(folder):
         try:
             with open(os.path.join(path, 'log.json'), 'rb') as fp:
                 stats[f] = json.load(fp)
-                print stats[f].keys()
+                print '\n'.join(stats[f].keys())
         except Exception:
             print 'Skipping, file is incomplete'
 
@@ -83,6 +83,10 @@ useful_keys_v3 = [
     'val/SupportClusteringAcc_sinkhorn_reg{}'.format(reg),
     #'val/QueryClusteringAcc_softmax_reg{}'.format(reg),
     'val/QueryClusteringAcc_sinkhorn_reg{}'.format(reg),
+     'test/SupervisedAcc_softmax',
+    'test/SupervisedAcc_sinkhorn',
+    'test/SupportClusteringAcc_sinkhorn'.format(reg),
+    'test/QueryClusteringAcc_sinkhorn'.format(reg),
     'other/_LR'
 ]
 

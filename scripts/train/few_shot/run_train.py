@@ -85,6 +85,21 @@ parser.add_argument('--clustering', default='wasserstein', choices=['kmeans', 'k
 
 args = vars(parser.parse_args())
 
+if args['train_loss'] == 'evalonly':
+    args['iteration'] = 1000
+    args['validate_interval'] = 1
+    args['hide_test'] = 0
+
+    # Append .eval to dir name
+    model_dir = args['log.exp_dir']
+    args['log.exp_dir'] = '{}.eval'.format(model_dir)
+
+    # Take best model in folder
+    if not args['checkpoint'] and not args['checkpoint_state']:
+        args['checkpoint'] = '{}/current_model.pt'.format(model_dir)
+
+    assert (args['checkpoint'] or args['checkpoint-state']) or args['rawinput'], 'Really? Evaluate untrained model?'
+
 if args['ravioli']:
     train.main(args)
 else:
