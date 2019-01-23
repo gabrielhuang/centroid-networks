@@ -91,6 +91,8 @@ def data_adapter(iterator, opt, train):
             }, new_epoch
         elif opt['data.dataset'] == 'omniglot':
             yield sample, new_epoch
+        elif opt['data.dataset'] == 'omniglot_ccn':
+            yield sample, new_epoch
         else:
             raise Exception('Unregistered dataset')
 
