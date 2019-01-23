@@ -14,6 +14,7 @@ parser.add_argument('--skipfraction', default=0, type=float, help='fraction to s
 parser.add_argument('--filter', default='', help='filter runs by filename')
 parser.add_argument('--gui', default=True, type=int, help='use GUI')
 parser.add_argument('--version', default=3, type=int, help='which version')
+parser.add_argument('--sigma', default=31, type=int, help='smoothing parameter (must be even)')
 
 args = parser.parse_args()
 
@@ -120,7 +121,7 @@ for key in useful_keys:
         print '\titerations {} -> {}'.format(subset_x[0], subset_x[-1])
         print '\t{:.4f} +/- {:.4f} (std = {:.4f})'.format(np.mean(subset_y), np.std(subset_y)/float(np.sqrt(len(subset_y))), np.std(subset_y))
 
-        plt.plot(subset_x, subset_y_smooth, label=f)
+        plt.plot(x, smoothed_y, label=f)
 
     plt.legend()
     plt.title(key)
