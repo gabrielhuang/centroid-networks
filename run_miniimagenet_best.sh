@@ -10,9 +10,10 @@ COMMON="python2 scripts/train/few_shot/run_train.py --data.cuda --data.dataset m
 
 
 #PYTHONPATH=. $COMMON --log.exp_dir results/miniimagenet/sinkhorn.temperature1.centroid0.1 --train-loss softmax --centroid-loss 0.1 --data.way 5  --checkpoint-state $HOME/code/cyvius96/save/proto-5/epoch-last.pth&
-PYTHONPATH=. $COMMON --log.exp_dir results/miniimagenet/sinkhorn.temperature1.centroid0.1 --train-loss sinkhorn --centroid-loss 0.1 --data.way 5  --checkpoint-state $HOME/code/cyvius96/save/proto-5/epoch-last.pth&
-PYTHONPATH=. $COMMON --log.exp_dir results/miniimagenet/sinkhorn.temperature1.centroid0.01 --train-loss sinkhorn --centroid-loss 0.01 --data.way 5  --checkpoint-state $HOME/code/cyvius96/save/proto-5/epoch-last.pth&
-PYTHONPATH=. $COMMON --log.exp_dir results/miniimagenet/sinkhorn.temperature1.centroid0.001 --train-loss sinkhorn --centroid-loss 0.001 --data.way 5  --checkpoint-state $HOME/code/cyvius96/save/proto-5/epoch-last.pth&
+PYTHONPATH=. $COMMON --log.exp_dir results/miniimagenet/sinkhorn.temperature1.centroid1 --train-loss sinkhorn --centroid-loss 1 --data.way 5  --checkpoint-state $HOME/code/cyvius96/save/proto-5/epoch-last.pth&
+#PYTHONPATH=. $COMMON --log.exp_dir results/miniimagenet/sinkhorn.temperature1.centroid0.1 --train-loss sinkhorn --centroid-loss 0.1 --data.way 5  --checkpoint-state $HOME/code/cyvius96/save/proto-5/epoch-last.pth&
+#PYTHONPATH=. $COMMON --log.exp_dir results/miniimagenet/sinkhorn.temperature1.centroid0.01 --train-loss sinkhorn --centroid-loss 0.01 --data.way 5  --checkpoint-state $HOME/code/cyvius96/save/proto-5/epoch-last.pth&
+#PYTHONPATH=. $COMMON --log.exp_dir results/miniimagenet/sinkhorn.temperature1.centroid0.001 --train-loss sinkhorn --centroid-loss 0.001 --data.way 5  --checkpoint-state $HOME/code/cyvius96/save/proto-5/epoch-last.pth&
 
 wait
 echo "All runs complete."
