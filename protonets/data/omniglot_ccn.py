@@ -29,9 +29,10 @@ normalize = transforms.Normalize((0.086,), (0.235,))
 alphabet_images_cache = {}
 
 class OmniglotCCNLoader(object):
-    def __init__(self, split, n_batch=100):
+    def __init__(self, split, n_batch=100, cuda=True):
 
         self.n_batch = 100 # not very important except for LR scheduling
+        self.cuda = cuda
 
         # copied from L2C repo
         self.split = split
@@ -123,7 +124,7 @@ def load(opt, splits):
             n_episodes = opt['data.train_episodes']
 
         # Load custom loader
-        omniglot_loader = OmniglotCCNLoader(split, n_batch=n_episodes)
+        omniglot_loader = OmniglotCCNLoader(split, n_batch=n_episodes, cuda=opt['data.cuda'])
 
         # use num_workers=0, otherwise may receive duplicate episodes
         ret[split] = omniglot_loader
