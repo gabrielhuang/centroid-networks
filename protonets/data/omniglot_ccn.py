@@ -91,6 +91,8 @@ class OmniglotCCNLoader(object):
             # Get tensor of all characters
             alphabet_images = self.get_alphabet_images(alphabet)
             # Return
+            if self.cuda:
+                alphabet_images = alphabet_images.cuda()
             yield {
                 'xs': alphabet_images,
                 'xq': alphabet_images.clone(),  # preserve compatibility with centroid networks code
