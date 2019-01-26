@@ -186,7 +186,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def clustering_loss(self, embedded_sample, regularization, clustering_type):
+    def clustering_loss(self, embedded_sample, regularization, clustering_type, sanity_check=True):
         '''
         This function returns results for two settings (simultaneously):
         - Learning to Cluster:
@@ -223,10 +223,31 @@ class ClusterNet(Protonet):
         z_support_flat = z_support.view(n_class*n_support, z_dim)
         z_query_flat = z_query.view(n_class*n_query, z_dim)
 
-        target_inds_support = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
-        target_inds_query = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
 
-        # Build support set targets
+        if sanity_check:  # Permute class labels and data for sanity check
+            # step 1, assign random labels
+            # Reassign the labels randomly
+            label_reassignment = np.random.permutation(n_class)
+            target_inds_support = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
+            target_inds_query = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
+        else:
+            target_inds_support = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
+            target_inds_query = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
+
+        if sanity_check:
+            # step 2, permute data randomly
+            support_permutation = np.random.permutation(n_class*n_support)
+            query_permutation = np.random.permutation(n_class*n_query)
+
+            z_support_flat = z_support_flat[support_permutation]
+            z_query_flat = z_query_flat[query_permutation]
+
+            # FIX THIS ON MONDAY
+            target_inds_support = target_inds_support[support_permutation]
+            target_inds_query = target_inds_query[query_permutation]
+
+
+        # Build dummy targets (replace with gather maybe?)
         target_inds_dummy_support = np.zeros((n_class*n_support, n_class))
         target_inds_dummy_support[range(n_class*n_support), target_inds_support.cpu().numpy().flatten()] = 1. # transform targets to one-hot
         target_inds_dummy_support = torch.FloatTensor(target_inds_dummy_support).to(z_query.device)

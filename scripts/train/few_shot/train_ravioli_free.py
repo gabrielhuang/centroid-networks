@@ -232,7 +232,7 @@ def main(opt):
             train_supervised_info = model.supervised_loss(embedding_train, regularization=softmax_regularization)
             for skr in sinkhorn_regularizations:
                 gamma = 1. / skr
-                train_clustering_info = model.clustering_loss(embedding_train, regularization=gamma, clustering_type=opt['clustering'])
+                train_clustering_info = model.clustering_loss(embedding_train, regularization=gamma, clustering_type=opt['clustering'], sanity_check=opt['sanity_check'])
                 # unsupervised losses
                 summary.log(iteration, 'train/SupportClusteringAcc_softmax_reg{}'.format(skr), train_clustering_info['SupportClusteringAcc_softmax'])
                 summary.log(iteration, 'train/SupportClusteringAcc_sinkhorn_reg{}'.format(skr), train_clustering_info['SupportClusteringAcc_sinkhorn'])
@@ -302,7 +302,7 @@ def main(opt):
 
                     for skr in sinkhorn_regularizations:
                         gamma = 1. / skr
-                        val_clustering_info = model.clustering_loss(embedding_val, regularization=gamma, clustering_type=opt['clustering'])
+                        val_clustering_info = model.clustering_loss(embedding_val, regularization=gamma, clustering_type=opt['clustering'], sanity_check=opt['sanity_check'])
 
                         # log unsupervised losses
                         summary.log(iteration, '{}/SupportClusteringAcc_softmax_reg{}'.format(subset, skr), val_clustering_info['SupportClusteringAcc_softmax'])
