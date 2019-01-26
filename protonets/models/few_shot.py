@@ -348,18 +348,18 @@ def load_clusternet_conv(**kwargs):
     return ClusterNet(encoder)
 
 
-
+# Load architecture used in the CCN paper
 @register_model('ccn')
-def load_clusternet_conv(**kwargs):
+def load_ccn(**kwargs):
     x_dim = kwargs['x_dim']
     hid_dim = kwargs['hid_dim']
     z_dim = kwargs['z_dim']
 
     vggs = VGGS(2)  # it is assumed input of size 1x32x32
 
-    encoder = nn.Sequential([
-        vggs,
+    encoder = nn.Sequential(
+        vggs.features,
         Flatten()
-    ])
+    )
 
     return ClusterNet(encoder)
