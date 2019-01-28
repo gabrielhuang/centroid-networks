@@ -87,7 +87,7 @@ parser.add_argument('--sanity-check', default=0, type=int, help='Sanity check: p
 args = vars(parser.parse_args())
 
 if args['train_loss'] == 'evalonly':
-    args['iteration'] = 1000
+    args['iterations'] = 1000
     args['validate_interval'] = 1
     args['hide_test'] = 0
 

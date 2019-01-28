@@ -48,9 +48,10 @@ class Summary(object):
             if (exclude is None or exclude not in log) and '_reg' not in log:
                 print '\t{}: {:.4f} +/- {:.4f}'.format(log, np.mean(val), np.std(val))
 
-    def print_full_summary(self, exclude=None):
+    def get_full_summary(self, exclude=None):
+        lines = []
+        lines.append('Summary')
         sorted_logs = self.sorted()
-        print 'Summary'
         for log in sorted_logs:
             tail = sorted_logs[log]
             val = dict(tail).values()
@@ -58,7 +59,14 @@ class Summary(object):
                 mean = np.mean(val)
                 std = np.std(val)
                 confidence95 = 1.96 * std / np.sqrt(len(val))
-                print '\t{}: {:.4f} +/- {:.4f} (std: {:.4f})'.format(log, mean, confidence95, std)
+                lines.append('\t{}: {:.4f} +/- {:.4f} (std: {:.4f})'.format(log, mean, confidence95, std))
+        return '\n'.join(lines)
+
+    def print_full_summary(self, exclude=None):
+        s = self.get_full_summary(exclude)
+        print s
+        return s
+
 
 class Timer:
     def __enter__(self):
@@ -377,5 +385,9 @@ def main(opt):
             try:
                 with open(os.path.join(opt['log.exp_dir'], 'log.json'), 'wb') as fp:
                     json.dump(summary.logs, fp)
+                # Dumpy full summary as well, although this mostly makes sense in evalonly mode
+                with open(os.path.join(opt['log.exp_dir'], 'summary.txt'), 'wb') as fp:
+                    fp.write('Iteration {}/{}\n'.format(iteration, opt['iterations']))
+                    fp.write(summary.get_full_summary())
             except Exception as e:
                 print 'Could not dump log file! Ignoring for now', e
