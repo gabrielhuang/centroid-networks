@@ -55,3 +55,5 @@ $HOME/data/
 ## Results on MiniImageNet
 
 ## Results on Omniglot (Constrained Clustering Network splits)
+
+The whole alphabet is fed as one minibatch. It fits on the Nvidia Tesla P100 (16GB ram). If it does not fit on your GPU, you can subsample during training, and compute embeddings separately during evaluation.
