@@ -232,8 +232,8 @@ class ClusterNet(Protonet):
             label_reassignment = np.random.permutation(n_class)
             class_indices = torch.tensor(label_reassignment)
 
-        target_inds_support = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_support, 1).flatten().long().to(z_support.device)
-        target_inds_query = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_query, 1).flatten().long().to(z_support.device)
+        target_inds_support = class_indices.view(n_class, 1, 1).expand(n_class, n_support, 1).flatten().long().to(z_support.device)
+        target_inds_query = class_indices.view(n_class, 1, 1).expand(n_class, n_query, 1).flatten().long().to(z_support.device)
 
         if sanity_check:
             # step 2, permute data randomly
