@@ -56,4 +56,22 @@ $HOME/data/
 
 ## Results on Omniglot (Constrained Clustering Network splits)
 
-The whole alphabet is fed as one minibatch. It fits on the Nvidia Tesla P100 (16GB ram). If it does not fit on your GPU, you can subsample during training, and compute embeddings separately during evaluation.
+This experiment reproduces the setting used in the [Learning to Cluster](https://github.com/GT-RIPL/L2C) projects.
+
+The whole alphabet is fed as one minibatch. It fits on the Nvidia Tesla P100 (16GB ram). If it does not fit on your GPU, you can subsample during training (e.g. use fewer shots), and compute embeddings separately during evaluation.
+Specifically for the implementation here, test=validation and support=query for compatibility with the other settings.
+
+Go to the folder
+```
+cd shell/omniglot_ccn
+```
+
+*Train*. This will save results and models in results/arch_ccn
+```
+./run_omniglot_ccn_archccn.sh sinkhorn
+```
+
+*Evaluate*. This will create folder results/arch_ccn.eval and log results there.
+```
+./run_omniglot_ccn_archccn.sh evalonly
+```
