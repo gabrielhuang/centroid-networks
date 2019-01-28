@@ -39,12 +39,16 @@ $HOME/data/
 
 ## General arguments
 
-### Train the model
+### Scripts
 
-* Run `python scripts/train/few_shot/run_train.py`. This will run training and place the results into `results`.
-  * You can specify a different output directory by passing in the option `--log.exp_dir EXP_DIR`, where `EXP_DIR` is your desired output directory.
-  * If you are running on a GPU you can pass in the option `--data.cuda`.
-* Re-run in trainval mode `python scripts/train/few_shot/run_trainval.py`. This will save your model into `results/trainval` by default.
+The main script is `scripts/train/few_shot/train_ravioli_free.py`, both for training and evaluation.
+
+The interesting code for few-shot clustering and unsupevised few-shot classification is in
+`protonets/models/fewshot.py` and `protonets/models/wasserstein.py`.
+
+For calling from the terminal, we use the wrapper script `scripts/train/few_shot/run_train.py` which takes as arguments
+- `--log.exp_dir EXP_DIR`, where `EXP_DIR` is your desired output directory.
+- `--data.cuda` for using CUDA or not.
 
 ### Evaluate
 
