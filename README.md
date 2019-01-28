@@ -21,7 +21,7 @@ The code is forked from the Prototypical Networks code by Jake Snell and collabo
 
 * Download MiniImageNet from Google Drive: https://drive.google.com/open?id=0B3Irx3uQNoBMQ1FlNXJsZUdYWEE
 * Note: If downloading using curl or wget, e.g. on a headless server, follow the trick on stackoverflow: https://stackoverflow.com/a/43816312
-* Extract the data so that it looks like `$HOME/data/miniimagenet/images/*.jpg`.
+* Extract the data to `$HOME/data/miniimagenet/` so that it looks like `$HOME/data/miniimagenet/images/*.jpg`.
 * Copy the splits from the repo to the same folder `cp data/miniImagenet/splits/ravi/*.csv $HOME/dat
 a/miniimagenet/`.
 
