@@ -1,26 +1,17 @@
-# Prototypical Networks for Few-shot Learning
+# Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Learning
 
-Code for the NIPS 2017 paper [Prototypical Networks for Few-shot Learning](http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf).
+Code for the paper "Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Learning".
 
-If you use this code, please cite our paper:
+The code is forked from the Prototypical Networks code by Jake Snell and collaborators. Thanks to them for sharing their code in the first place! Their instructions (below) have been modified for our project.
 
-```
-@inproceedings{snell2017prototypical,
-  title={Prototypical Networks for Few-shot Learning},
-  author={Snell, Jake and Swersky, Kevin and Zemel, Richard},
-  booktitle={Advances in Neural Information Processing Systems},
-  year={2017}
- }
- ```
-
-## Training a prototypical network
+## Training Centroid Networks
 
 ### Install dependencies
 
-* This code has been tested on Ubuntu 16.04 with Python 3.6 and PyTorch 0.4.
+* This code has been tested with Python 2.7 and PyTorch 1.0.
 * Install [PyTorch and torchvision](http://pytorch.org/).
 * Install [torchnet](https://github.com/pytorch/tnt) by running `pip install git+https://github.com/pytorch/tnt.git@master`.
-* Install the protonets package by running `python setup.py install` or `python setup.py develop`.
+* Install the protonets package by running `python setup.py install` or `python setup.py develop`. Alternatively, call your scripts by prepending PYTHONPATH=/PATH/TO/PROTONET/FOLDER before the call to the python interpreter.
 
 ### Set up the Omniglot dataset
 
