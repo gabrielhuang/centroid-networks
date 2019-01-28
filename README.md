@@ -37,6 +37,24 @@ $HOME/data/
   └── train.csv
 ```
 
+### Third-party MiniImageNet protonets.
+
+Since the upstream repo does not provide code for MiniImageNet, we used a third party implementation.
+
+We also pretrain our models using Protonets, although that is probably not necessary.
+
+First, clone the relevant repo in a sibling directory `cyvius96` to our repo:
+```
+git clone https://github.com/cyvius96/prototypical-network-pytorch.git cyvius96
+```
+
+Then, run the training.
+```
+python train.py --shot 5 --train-way 20 --save-path ./save/proto-5
+```
+
+This will save a model in `cyvius96/save/proto-5/epoch-last.pth` which we will reuse in our scripts.
+
 ## General arguments
 
 ### Scripts
