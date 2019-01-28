@@ -4,7 +4,7 @@ Code for the paper "Centroid Networks for Few-shot Clustering and Unsupervised F
 
 The code is forked from the Prototypical Networks code by Jake Snell and collaborators. Thanks to them for sharing their code in the first place! Their instructions (below) have been modified for our project.
 
-## Training Centroid Networks
+## Preparing Data & Dependencies
 
 ### Install dependencies
 
@@ -25,6 +25,8 @@ The code is forked from the Prototypical Networks code by Jake Snell and collabo
 * Copy the splits from the repo to the same folder `cp data/miniImagenet/splits/ravi/*.csv $HOME/dat
 a/miniimagenet/`.
 
+## General arguments
+
 ### Train the model
 
 * Run `python scripts/train/few_shot/run_train.py`. This will run training and place the results into `results`.
@@ -35,3 +37,9 @@ a/miniimagenet/`.
 ### Evaluate
 
 * Run evaluation as: `python scripts/predict/few_shot/run_eval.py --model.model_path results/trainval/best_model.pt`.
+
+## Results on Omniglot
+
+## Results on MiniImageNet
+
+## Results on Omniglot (Constrained Clustering Network splits)
