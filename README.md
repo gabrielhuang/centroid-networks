@@ -39,9 +39,9 @@ $HOME/data/
 
 ### Third-party MiniImageNet protonets.
 
-Since the upstream repo does not provide code for MiniImageNet, we used a third party implementation.
+We pretrained our models using Protonets, although that is probably not necessary.
 
-We also pretrain our models using Protonets, although that is probably not necessary.
+Since the upstream repo does not provide code for MiniImageNet, we used a third party implementation.
 
 First, clone the relevant repo in a sibling directory `cyvius96` to our repo:
 ```
@@ -68,9 +68,6 @@ For calling from the terminal, we use the wrapper script `scripts/train/few_shot
 - `--log.exp_dir EXP_DIR`, where `EXP_DIR` is your desired output directory.
 - `--data.cuda` for using CUDA or not.
 
-### Evaluate
-
-* Run evaluation as: `python scripts/predict/few_shot/run_eval.py --model.model_path results/trainval/best_model.pt`.
 
 ## Results on Omniglot
 
