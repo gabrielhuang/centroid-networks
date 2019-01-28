@@ -10,7 +10,7 @@ The code is forked from the Prototypical Networks code by Jake Snell and collabo
 
 * This code has been tested with Python 2.7 and PyTorch 1.0.
 * Install [PyTorch and torchvision](http://pytorch.org/).
-* Install [torchnet](https://github.com/pytorch/tnt) by running `pip install git+https://github.com/pytorch/tnt.git@master`.
+* Install [torchnet](https://github.com/pytorch/tnt) by running `pip install torchnet`.
 * Install the protonets package by running `python setup.py install` or `python setup.py develop`. Alternatively, call your scripts using the `PYTHONPATH=/PATH/TO/PROTONET/FOLDER python2 /path/to/script.py` syntax.
 
 ### Set up the Omniglot dataset
