@@ -1,6 +1,6 @@
-# Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Learning
+# Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Classification
 
-Code for the paper "Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Learning".
+Code for the paper "Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Classification".
 
 The code is forked from the Prototypical Networks code by Jake Snell and collaborators. Thanks to them for sharing their code in the first place! Their instructions (below) have been modified for our project.
 
