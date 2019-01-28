@@ -223,16 +223,17 @@ class ClusterNet(Protonet):
         z_support_flat = z_support.view(n_class*n_support, z_dim)
         z_query_flat = z_query.view(n_class*n_query, z_dim)
 
+        # Class indices; usually 0, ..., n_class-1 unless sanity check
+        class_indices = torch.arange(0, n_class)
 
         if sanity_check:  # Permute class labels and data for sanity check
             # step 1, assign random labels
             # Reassign the labels randomly
             label_reassignment = np.random.permutation(n_class)
-            target_inds_support = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
-            target_inds_query = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
-        else:
-            target_inds_support = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
-            target_inds_query = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
+            class_indices = torch.tensor(label_reassignment)
+
+        target_inds_support = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_support, 1).flatten().long().to(z_support.device)
+        target_inds_query = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_query, 1).flatten().long().to(z_support.device)
 
         if sanity_check:
             # step 2, permute data randomly
@@ -242,7 +243,6 @@ class ClusterNet(Protonet):
             z_support_flat = z_support_flat[support_permutation]
             z_query_flat = z_query_flat[query_permutation]
 
-            # FIX THIS ON MONDAY
             target_inds_support = target_inds_support[support_permutation]
             target_inds_query = target_inds_query[query_permutation]
 
@@ -311,6 +311,7 @@ class ClusterNet(Protonet):
 
             all_support_clustering_accuracy[conditional_mode] = support_clustering_accuracy
             all_query_clustering_accuracy[conditional_mode] = query_clustering_accuracy
+
 
         # This was only useful when backpropping end-to-end.
         # # Build permutation cost matrix
