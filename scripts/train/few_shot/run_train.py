@@ -82,6 +82,7 @@ parser.add_argument('--regularizations', default='0.01,0.1,10,100,1', type=str, 
 parser.add_argument('--rawinput', default=0, type=int, help='use raw inputs or train features (model weights are ignored)')
 parser.add_argument('--hide-test', default=1, type=int, help='hide meta-testing metrics (they will be logged)')
 parser.add_argument('--clustering', default='wasserstein', choices=['kmeans', 'kmeansplusplus', 'wasserstein'], help='which clustering algorithm to use')
+parser.add_argument('--sanity-check', default=0, type=int, help='Sanity check: permute labels and data before clustering')
 
 args = vars(parser.parse_args())
 

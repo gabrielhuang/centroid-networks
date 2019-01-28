@@ -186,7 +186,7 @@ class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
 
-    def clustering_loss(self, embedded_sample, regularization, clustering_type):
+    def clustering_loss(self, embedded_sample, regularization, clustering_type, sanity_check=True):
         '''
         This function returns results for two settings (simultaneously):
         - Learning to Cluster:
@@ -223,10 +223,31 @@ class ClusterNet(Protonet):
         z_support_flat = z_support.view(n_class*n_support, z_dim)
         z_query_flat = z_query.view(n_class*n_query, z_dim)
 
-        target_inds_support = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_support, 1).long().to(z_support.device)
-        target_inds_query = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(z_support.device)
+        # Class indices; usually 0, ..., n_class-1 unless sanity check
+        class_indices = torch.arange(0, n_class)
 
-        # Build support set targets
+        if sanity_check:  # Permute class labels and data for sanity check
+            # step 1, assign random labels
+            # Reassign the labels randomly
+            label_reassignment = np.random.permutation(n_class)
+            class_indices = torch.tensor(label_reassignment)
+
+        target_inds_support = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_support, 1).flatten().long().to(z_support.device)
+        target_inds_query = torch.tensor(label_reassignment).view(n_class, 1, 1).expand(n_class, n_query, 1).flatten().long().to(z_support.device)
+
+        if sanity_check:
+            # step 2, permute data randomly
+            support_permutation = np.random.permutation(n_class*n_support)
+            query_permutation = np.random.permutation(n_class*n_query)
+
+            z_support_flat = z_support_flat[support_permutation]
+            z_query_flat = z_query_flat[query_permutation]
+
+            target_inds_support = target_inds_support[support_permutation]
+            target_inds_query = target_inds_query[query_permutation]
+
+
+        # Build dummy targets (replace with gather maybe?)
         target_inds_dummy_support = np.zeros((n_class*n_support, n_class))
         target_inds_dummy_support[range(n_class*n_support), target_inds_support.cpu().numpy().flatten()] = 1. # transform targets to one-hot
         target_inds_dummy_support = torch.FloatTensor(target_inds_dummy_support).to(z_query.device)
@@ -291,30 +312,6 @@ class ClusterNet(Protonet):
             all_support_clustering_accuracy[conditional_mode] = support_clustering_accuracy
             all_query_clustering_accuracy[conditional_mode] = query_clustering_accuracy
 
-        # This was only useful when backpropping end-to-end.
-        # # Build permutation cost matrix
-        # permutation_cost = -log_p_y.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
-        # permutation_cost = permutation_cost.sum(1).sum(0)
-        #
-        # # Permuted log probabilities
-        # loss_val_unnormalized, assignment, __, __, __ = wasserstein.compute_sinkhorn_stable(
-        #     permutation_cost, regularization=100., iterations=10)
-        #
-        # loss_val = loss_val_unnormalized / n_query  # normalize so it looks like a normal cross entropy
-        #
-        # log_p_y_permuted = n_class * torch.matmul(log_p_y, assignment)
-        #
-        # # _, y_hat = log_p_y.max(2)
-        # __, y_hat = log_p_y_permuted.max(2)
-        #
-        # acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
-
-        # Compute best label assignment and corresponding loss
-        # assignment[a,b] = 1_{a=\sigma(b)}
-        # min_{\gamma} \sum_{a,b} permutation_cost[a,b] * assignment[a,b]
-        # might not backprop through the graph though ...
-        # it might or might not be equivalent due to the contraints (is it a critical point?)
-
         return {
             'SupportClusteringAcc_softmax': all_support_clustering_accuracy['softmax'],
             'SupportClusteringAcc_sinkhorn': all_support_clustering_accuracy['sinkhorn'],
@@ -348,18 +345,18 @@ def load_clusternet_conv(**kwargs):
     return ClusterNet(encoder)
 
 
-
+# Load architecture used in the CCN paper
 @register_model('ccn')
-def load_clusternet_conv(**kwargs):
+def load_ccn(**kwargs):
     x_dim = kwargs['x_dim']
     hid_dim = kwargs['hid_dim']
     z_dim = kwargs['z_dim']
 
     vggs = VGGS(2)  # it is assumed input of size 1x32x32
 
-    encoder = nn.Sequential([
-        vggs,
+    encoder = nn.Sequential(
+        vggs.features,
         Flatten()
-    ])
+    )
 
     return ClusterNet(encoder)

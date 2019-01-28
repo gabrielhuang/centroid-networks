@@ -1,30 +1,31 @@
-# Prototypical Networks for Few-shot Learning
+# Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Classification
 
-Code for the NIPS 2017 paper [Prototypical Networks for Few-shot Learning](http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf).
+Code for the paper "Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Classification".
 
-If you use this code, please cite our paper:
+The code is forked from the Prototypical Networks code by Jake Snell and collaborators. Thanks to them for sharing their code in the first place! Their instructions (below) have been modified for our project.
 
-```
-@inproceedings{snell2017prototypical,
-  title={Prototypical Networks for Few-shot Learning},
-  author={Snell, Jake and Swersky, Kevin and Zemel, Richard},
-  booktitle={Advances in Neural Information Processing Systems},
-  year={2017}
- }
- ```
-
-## Training a prototypical network
+## Preparing Data & Dependencies
 
 ### Install dependencies
 
-* This code has been tested on Ubuntu 16.04 with Python 3.6 and PyTorch 0.4.
+* This code has been tested with Python 2.7 and PyTorch 1.0.
 * Install [PyTorch and torchvision](http://pytorch.org/).
-* Install [torchnet](https://github.com/pytorch/tnt) by running `pip install git+https://github.com/pytorch/tnt.git@master`.
-* Install the protonets package by running `python setup.py install` or `python setup.py develop`.
+* Install [torchnet](https://github.com/pytorch/tnt) by running `pip install torchnet`.
+* Install the protonets package by running `python setup.py install` or `python setup.py develop`. Alternatively, call your scripts using the `PYTHONPATH=/PATH/TO/PROTONET/FOLDER python2 /path/to/script.py` syntax.
 
 ### Set up the Omniglot dataset
 
 * Run `sh download_omniglot.sh`.
+
+### Set up the MiniImageNet dataset
+
+* Download MiniImageNet from Google Drive: https://drive.google.com/open?id=0B3Irx3uQNoBMQ1FlNXJsZUdYWEE
+* Note: If downloading using curl or wget, e.g. on a headless server, follow the trick on stackoverflow: https://stackoverflow.com/a/43816312
+* Extract the data to `$HOME/data/miniimagenet/` so that it looks like `$HOME/data/miniimagenet/images/*.jpg`.
+* Copy the splits from the repo to the same folder `cp data/miniImagenet/splits/ravi/*.csv $HOME/dat
+a/miniimagenet/`.
+
+## General arguments
 
 ### Train the model
 
@@ -36,3 +37,9 @@ If you use this code, please cite our paper:
 ### Evaluate
 
 * Run evaluation as: `python scripts/predict/few_shot/run_eval.py --model.model_path results/trainval/best_model.pt`.
+
+## Results on Omniglot
+
+## Results on MiniImageNet
+
+## Results on Omniglot (Constrained Clustering Network splits)
