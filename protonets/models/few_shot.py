@@ -312,31 +312,6 @@ class ClusterNet(Protonet):
             all_support_clustering_accuracy[conditional_mode] = support_clustering_accuracy
             all_query_clustering_accuracy[conditional_mode] = query_clustering_accuracy
 
-
-        # This was only useful when backpropping end-to-end.
-        # # Build permutation cost matrix
-        # permutation_cost = -log_p_y.view(n_class, n_query, n_class, 1) * target_inds_dummy.view(n_class, n_query, 1, n_class)
-        # permutation_cost = permutation_cost.sum(1).sum(0)
-        #
-        # # Permuted log probabilities
-        # loss_val_unnormalized, assignment, __, __, __ = wasserstein.compute_sinkhorn_stable(
-        #     permutation_cost, regularization=100., iterations=10)
-        #
-        # loss_val = loss_val_unnormalized / n_query  # normalize so it looks like a normal cross entropy
-        #
-        # log_p_y_permuted = n_class * torch.matmul(log_p_y, assignment)
-        #
-        # # _, y_hat = log_p_y.max(2)
-        # __, y_hat = log_p_y_permuted.max(2)
-        #
-        # acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
-
-        # Compute best label assignment and corresponding loss
-        # assignment[a,b] = 1_{a=\sigma(b)}
-        # min_{\gamma} \sum_{a,b} permutation_cost[a,b] * assignment[a,b]
-        # might not backprop through the graph though ...
-        # it might or might not be equivalent due to the contraints (is it a critical point?)
-
         return {
             'SupportClusteringAcc_softmax': all_support_clustering_accuracy['softmax'],
             'SupportClusteringAcc_sinkhorn': all_support_clustering_accuracy['sinkhorn'],
