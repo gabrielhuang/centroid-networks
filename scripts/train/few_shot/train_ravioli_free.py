@@ -78,6 +78,12 @@ class Timer:
         self.interval = self.end - self.start
 
 
+def detach_(embedding):
+    for key in embedding:
+        if key in ['zs', 'zq']:
+            embedding[key] = embedding[key].detach()
+
+
 def data_adapter(iterator, opt, train):
     '''
     Adapter for miniimagenet loader (taken from other code)
@@ -235,6 +241,7 @@ def main(opt):
                 print 'zs', embedding_train['zs'].size()
                 print 'zq', embedding_train['zq'].size()
                 # Should be 64 for omniglot and 1600 for miniimagenet
+            del sample_train  # save memory
 
             # Supervised and Clustering Losses
             train_supervised_info = model.supervised_loss(embedding_train, regularization=softmax_regularization)
@@ -305,6 +312,8 @@ def main(opt):
 
                     # z = h(x)
                     embedding_val = model.embed(sample_val, raw_input=opt['rawinput'])
+                    detach_(embedding_val)  # save memory
+                    del sample_val  # save memory
 
                     val_supervised_info = model.supervised_loss(embedding_val, regularization=softmax_regularization)
 
