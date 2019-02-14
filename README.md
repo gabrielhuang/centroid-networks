@@ -102,6 +102,22 @@ The interesting lines are:
 
 ## Results on MiniImageNet
 
+### Protonet Pretraining (3rd party code)
+As of now, our best results are obtained by first pretraining a Prototypical Network to do supervised 20-way classification.
+We have used the 3rd party code by [cyvius96](https://github.com/cyvius96/prototypical-network-pytorch)
+
+```
+git clone https://github.com/cyvius96/prototypical-network-pytorch.git
+python train.py --shot 5 --train-way 20 --save-path ./save/proto-5
+```
+
+This creates a pickled checkpoint `save/proto-5/epoch-last.pth` which we use to initialize Centroid Networks.
+
+### Centroid Network Training
+
+
+
+
 ## Results on Omniglot (Constrained Clustering Network splits)
 
 This experiment reproduces the setting used in the [Learning to Cluster](https://github.com/GT-RIPL/L2C) projects.
