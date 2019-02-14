@@ -71,6 +71,35 @@ For calling from the terminal, we use the wrapper script `scripts/train/few_shot
 
 ## Results on Omniglot
 
+Go to the folder
+```
+cd shell/omniglot_fewshot
+```
+
+*Train* for 5-shot and 20-shot. This will save results and models in `results/omniglot5` and `results/omniglot20`.
+A lot of statistics (runnning averages) such as clustering accuracy are printed during training, but follow procedure below for proper evaluation.
+```
+./run_omniglot_fewshot.sh sinkhorn 5
+./run_omniglot_fewshot.sh sinkhorn 20
+```
+
+*Evaluate* for 5-shot and 20-shot. This will create new directories `results/omniglot5.` and `results/omniglot20`.
+```
+./run_omniglot_fewshot.sh evalonly 5
+./run_omniglot_fewshot.sh evalonly 20
+```
+
+Inspect the resulting logs
+```
+cat results/omniglot5/summary.txt
+cat results/omniglot20/summary.txt
+```
+
+The interesting lines are:
+- *Test Clustering Accuracy* `test/SupportClusteringAcc_sinkhorn`
+- *Test Unsupervised Accuracy* `test/QueryClusteringAcc_sinkhorn`
+
+
 ## Results on MiniImageNet
 
 ## Results on Omniglot (Constrained Clustering Network splits)
@@ -85,12 +114,20 @@ Go to the folder
 cd shell/omniglot_ccn
 ```
 
-*Train*. This will save results and models in results/arch_ccn
+*Train*. This will save results and models in `results/arch_ccn`
 ```
 ./run_omniglot_ccn_archccn.sh sinkhorn
 ```
 
-*Evaluate*. This will create folder results/arch_ccn.eval and log results there.
+*Evaluate*. This will create folder `results/arch_ccn.eval` and log results there.
 ```
 ./run_omniglot_ccn_archccn.sh evalonly
 ```
+
+Inspect the resulting logs
+```
+cat results/omniglot5/summary.txt
+```
+
+The interesting lines are:
+- *Test Clustering Accuracy* `test/SupportClusteringAcc_sinkhorn`, which can be directly compared with the Omniglot results from the [Learning to Cluster project](https://github.com/GT-RIPL/L2C)
