@@ -83,7 +83,7 @@ A lot of statistics (runnning averages) such as clustering accuracy are printed 
 ./run_omniglot_fewshot.sh sinkhorn 20
 ```
 
-*Evaluate* for 5-shot and 20-shot. This will create new directories `results/omniglot5.` and `results/omniglot20`.
+*Evaluate* for 5-shot and 20-shot. This will create new directories `results/omniglot5.eval` and `results/omniglot20.eval`.
 ```
 ./run_omniglot_fewshot.sh evalonly 5
 ./run_omniglot_fewshot.sh evalonly 20
@@ -101,6 +101,46 @@ The interesting lines are:
 
 
 ## Results on MiniImageNet
+
+### Protonet Pretraining (3rd party code)
+As of now, our best results are obtained by first pretraining a Prototypical Network to do supervised 20-way classification.
+We have used the 3rd party code by [cyvius96](https://github.com/cyvius96/prototypical-network-pytorch)
+
+```
+cd $HOME/code  # change path as needed
+git clone https://github.com/cyvius96/prototypical-network-pytorch.git cyvius96
+python train.py --shot 5 --train-way 20 --save-path ./save/proto-5
+```
+
+This creates a pickled checkpoint `$HOME/code/cyvius96/save/proto-5/epoch-last.pth` which we will reuse to initialize Centroid Networks.
+
+### Centroid Networks Fine-tuning
+
+Go to the shell script folder
+```
+cd shell/miniimagenet_fewshot
+```
+
+*Train* for 5-shot. This will save results and models in `results/miniimagenet5`.
+A lot of statistics (runnning averages) such as clustering accuracy are printed during training, but follow procedure below for proper evaluation.
+```
+./run_miniimagenet_fewshot.sh sinkhorn
+```
+
+*Evaluate* for 5-shot. This will create a new directory `results/miniimagenet5.eval`.
+```
+./run_miniimagenet_fewshot.sh evalonly
+```
+
+Inspect the resulting logs
+```
+cat results/miniimagenet5/summary.txt
+```
+
+The interesting lines are:
+- *Test Clustering Accuracy* `test/SupportClusteringAcc_sinkhorn`
+- *Test Unsupervised Accuracy* `test/QueryClusteringAcc_sinkhorn`
+
 
 ## Results on Omniglot (Constrained Clustering Network splits)
 
