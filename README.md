@@ -114,6 +114,23 @@ python train.py --shot 5 --train-way 20 --save-path ./save/proto-5
 
 This creates a pickled checkpoint `$HOME/code/cyvius96/save/proto-5/epoch-last.pth` which we will reuse to initialize Centroid Networks.
 
+### Protonet Pretraining (Experimental!! our code)
+
+Alternatively, pretrain with our code.
+
+Go to the shell script folder
+```
+cd shell/miniimagenet_fewshot
+```
+
+Train for 20-way classification with a softmax loss (reduces to Protonet training). 
+```
+./pretrain_miniimagenet.sh
+```
+
+This creates checkpoints in `/results/miniimagenet5.pretrain/current_model.pt` which can be reused in next step.
+
+
 ### Centroid Networks Fine-tuning
 
 Go to the shell script folder
