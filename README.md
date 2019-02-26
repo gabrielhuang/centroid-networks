@@ -2,7 +2,7 @@
 
 Code for the paper [Centroid Networks for Few-shot Clustering and Unsupervised Few-shot Classification](https://arxiv.org/abs/1902.08605).
 
-The code is forked from the Prototypical Networks code by Jake Snell and collaborators. Thanks to them for sharing their code in the first place! Their instructions (below) have been modified for our project.
+The code is forked from the [Prototypical Networks](https://github.com/jakesnell/prototypical-networks) code by Jake Snell and collaborators. Thanks to them for sharing their code in the first place! Their instructions (below) have been modified for our project. Also, thanks to [cyvius96](https://github.com/cyvius96/prototypical-network-pytorch/) for providing a prototypical network implementation for miniImageNet.
 
 ## Preparing Data & Dependencies
 
