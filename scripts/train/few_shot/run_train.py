@@ -76,7 +76,7 @@ parser.add_argument('--validate-interval', default=10, type=int, help='validate 
 parser.add_argument('--checkpoint', default='', help='load model checkpoint')
 parser.add_argument('--checkpoint-state', default='', help='load model state checkpoint')
 parser.add_argument('--centroid-loss', default=0., type=float, help='centroid loss penalty')
-parser.add_argument('--train-loss', required=True, choices=['softmax', 'sinkhorn', 'twostep', 'evalonly'], help='meta-training loss')
+parser.add_argument('--train-loss', required=True, choices=['softmax', 'sinkhorn', 'twostep', 'end2end', 'evalonly'], help='meta-training loss')
 parser.add_argument('--temperature', default=1., type=float, help='temperature for softmax and assignments')
 parser.add_argument('--regularizations', default='0.01,0.1,10,100,1', type=str, help='regularizations to try')  # 1 should be the last one
 parser.add_argument('--rawinput', default=0, type=int, help='use raw inputs or train features (model weights are ignored)')
@@ -100,6 +100,9 @@ if args['train_loss'] == 'evalonly':
         args['checkpoint'] = '{}/current_model.pt'.format(model_dir)
 
     assert (args['checkpoint'] or args['checkpoint_state']) or args['rawinput'], 'Really? Evaluate untrained model?'
+
+if args['train_loss'] == 'end2end':
+    assert args['regularizations'] == '1', 'Only regularization = 1 compatible with end2end for now'
 
 if args['ravioli']:
     train.main(args)

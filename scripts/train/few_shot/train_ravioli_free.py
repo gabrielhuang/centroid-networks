@@ -135,8 +135,8 @@ def main(opt):
     # Boilerplate
     ###########################################
 
-    assert not (opt['clustering'] != 'wasserstein' and opt['train_loss'] in ['sinkhorn', 'twostep']),\
-        'Only Wasserstein clustering is compatible with Sinkhorn and Twostep meta-training losses'
+    #assert not (opt['clustering'] != 'wasserstein' and opt['train_loss'] in ['sinkhorn', 'twostep']),\
+    #    'Only Wasserstein clustering is compatible with Sinkhorn and Twostep meta-training losses'
 
     if not os.path.isdir(opt['log.exp_dir']):
         os.makedirs(opt['log.exp_dir'])
@@ -261,6 +261,9 @@ def main(opt):
                 total_loss = train_supervised_info['SupervisedLoss_sinkhorn']
             elif opt['train_loss'] == 'twostep':
                 total_loss = train_supervised_info['SupervisedLoss_twostep']
+            elif opt['train_loss'] == 'end2end':
+                #total_loss = train_clustering_info['SupportClusteringLoss_sinkhorn']
+                total_loss = train_clustering_info['SupportClusteringLoss_softmax']
             elif opt['train_loss'] == 'evalonly':
                 total_loss = torch.zeros([])
             else:
@@ -291,6 +294,12 @@ def main(opt):
         summary.log(iteration, 'train/SupportClusteringAcc_sinkhorn', train_clustering_info['SupportClusteringAcc_sinkhorn'])
         summary.log(iteration, 'train/QueryClusteringAcc_softmax', train_clustering_info['QueryClusteringAcc_softmax'])
         summary.log(iteration, 'train/QueryClusteringAcc_sinkhorn', train_clustering_info['QueryClusteringAcc_sinkhorn'])
+
+        # end to end losses
+        summary.log(iteration, 'train/SupportClusteringLoss_softmax', train_clustering_info['SupportClusteringLoss_softmax'].item())
+        summary.log(iteration, 'train/SupportClusteringLoss_sinkhorn', train_clustering_info['SupportClusteringLoss_sinkhorn'].item())
+        summary.log(iteration, 'train/QueryClusteringLoss_softmax', train_clustering_info['QueryClusteringLoss_softmax'].item())
+        summary.log(iteration, 'train/QueryClusteringLoss_sinkhorn', train_clustering_info['QueryClusteringLoss_sinkhorn'].item())
 
         summary.log(iteration, 'train/_TimeLoad', train_load_timer.interval)
         summary.log(iteration, 'train/_TimeBackprop', train_backprop_timer.interval)
@@ -341,6 +350,12 @@ def main(opt):
                 summary.log(iteration, '{}/SupportClusteringAcc_sinkhorn'.format(subset), val_clustering_info['SupportClusteringAcc_sinkhorn'])
                 summary.log(iteration, '{}/QueryClusteringAcc_softmax'.format(subset), val_clustering_info['QueryClusteringAcc_softmax'])
                 summary.log(iteration, '{}/QueryClusteringAcc_sinkhorn'.format(subset), val_clustering_info['QueryClusteringAcc_sinkhorn'])
+
+                # end-to-end losses
+                summary.log(iteration, '{}/SupportClusteringLoss_softmax'.format(subset), val_clustering_info['SupportClusteringLoss_softmax'].item())
+                summary.log(iteration, '{}/SupportClusteringLoss_sinkhorn'.format(subset), val_clustering_info['SupportClusteringLoss_sinkhorn'].item())
+                summary.log(iteration, '{}/QueryClusteringLoss_softmax'.format(subset), val_clustering_info['QueryClusteringLoss_softmax'].item())
+                summary.log(iteration, '{}/QueryClusteringLoss_sinkhorn'.format(subset), val_clustering_info['QueryClusteringLoss_sinkhorn'].item())
 
                 summary.log(iteration, '{}/_TimeLoad'.format(subset), val_load_timer.interval)
                 summary.log(iteration, '{}/_TimeEval'.format(subset), val_eval_timer.interval)

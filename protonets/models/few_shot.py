@@ -182,6 +182,9 @@ def load_protonet_conv(**kwargs):
     return Protonet(encoder)
 
 
+get_nll = nn.NLLLoss()
+
+
 class ClusterNet(Protonet):
     def __init__(self, encoder):
         super(ClusterNet, self).__init__(encoder)
@@ -283,6 +286,8 @@ class ClusterNet(Protonet):
         ############ Make predictions in Few-shot clustering (Support) and Unsupervised Few shot learning (Query) mode ###################
         all_support_clustering_accuracy = {}
         all_query_clustering_accuracy = {}
+        all_support_losses = {}
+        all_query_losses = {}
         for conditional_mode, log_p_y_support in all_log_p_y_support.items():
 
             # Build accuracy permutation matrix (to match support with ground truth)
@@ -295,7 +300,7 @@ class ClusterNet(Protonet):
                 n_class, n_support, 1, n_class)
             accuracy_permutation_cost_support = accuracy_permutation_cost_support.sum(1).sum(0)
 
-            # Use Hungarian algorithm to find best match
+            # Use Hungarian algorithm to find best match. cols_support[pred_idx] = true_idx
             __, __, cols_support = wasserstein.compute_hungarian(accuracy_permutation_cost_support)
             support_permuted_prediction = cols_support[y_hat_support]
             support_clustering_accuracy = (support_permuted_prediction == target_inds_support.cpu().numpy().flatten()).mean()
@@ -303,20 +308,34 @@ class ClusterNet(Protonet):
             # Now, run standard prototypical networks, but plugging centroids instead of prototypes
             log_p_y_query = F.log_softmax(-query_dists*regularization, dim=1)
             _, y_hat_query = log_p_y_query.max(1)
-            y_hat_query = y_hat_query.cpu().numpy()
+            y_hat_query_np = y_hat_query.cpu().numpy()
 
             # Permute predictions
-            query_permuted_predictions = cols_support[y_hat_query]
+            query_permuted_predictions = cols_support[y_hat_query_np]
             query_clustering_accuracy = (query_permuted_predictions == target_inds_query.cpu().numpy().flatten()).mean()
 
             all_support_clustering_accuracy[conditional_mode] = support_clustering_accuracy
             all_query_clustering_accuracy[conditional_mode] = query_clustering_accuracy
 
+            # TODO: Use better assignment based on log p confusion matrix rather than accuracy confusion matrix
+            # For end-to-end training, compute cross entropy
+            inv_cols_support = np.zeros(len(cols_support), dtype=np.long)
+            inv_cols_support[cols_support] = range(len(cols_support))# invert cols_support map
+            support_permuted_log_p_y = log_p_y_support[:, inv_cols_support]
+            query_permuted_log_p_y = log_p_y_query[:, inv_cols_support]
+            all_support_losses[conditional_mode] = get_nll(support_permuted_log_p_y, target_inds_support)
+            all_query_losses[conditional_mode] = get_nll(query_permuted_log_p_y, target_inds_query)
+
         return {
             'SupportClusteringAcc_softmax': all_support_clustering_accuracy['softmax'],
             'SupportClusteringAcc_sinkhorn': all_support_clustering_accuracy['sinkhorn'],
             'QueryClusteringAcc_softmax': all_query_clustering_accuracy['softmax'],
-            'QueryClusteringAcc_sinkhorn': all_query_clustering_accuracy['sinkhorn']
+            'QueryClusteringAcc_sinkhorn': all_query_clustering_accuracy['sinkhorn'],
+             # New end-to-end losses
+            'SupportClusteringLoss_softmax': all_support_losses['softmax'],
+            'SupportClusteringLoss_sinkhorn': all_support_losses['sinkhorn'],
+            'QueryClusteringLoss_softmax': all_query_losses['softmax'],
+            'QueryClusteringLoss_sinkhorn': all_query_losses['sinkhorn']
         }
 
 
